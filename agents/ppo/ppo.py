@@ -18,13 +18,11 @@ import jaxatari
 from jaxatari.wrappers import NormalizeObservationWrapper, ObjectCentricWrapper, PixelObsWrapper, AtariWrapper, LogWrapper, FlattenObservationWrapper
 from jaxatari import spaces
 from agents.ppo.ppo_eval import evaluate
+from rtpt import RTPT
 from reward_machines.games.game_rm import GameRM
-from reward_machines.games.pong_rm import PongRm
 from reward_machines.reward_machine import RewardMachine
 from reward_machines.reward_machine_wrapper import RewardMachineWrapper
-
-
-from rtpt import RTPT
+from reward_machines.rm_registry import GAME_RM_REGISTRY
 
 def make_env(env_id, mods=[], pixel_based=True, native_downscaling=True, eval=False, game_rm: GameRM | None=None):
     assert mods is None or isinstance(mods, list), "mods must be None or a list of strings"
