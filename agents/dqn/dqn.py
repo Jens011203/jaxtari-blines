@@ -1,4 +1,8 @@
-# Adapted from https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/dqn_atari_jax.py
+"""
+PureJaxRL version of CleanRL's DQN: https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/dqn_jax.py
+"""
+from functools import partial
+import time
 import os
 import random
 import time
@@ -8,12 +12,10 @@ import flax
 import flax.linen as nn
 import jax
 import jax.numpy as jnp
+from jax.random import orthogonal
 import numpy as np
-import optax
-import flashbax as fbx
-import wandb
-from flax.linen.initializers import constant, orthogonal
-from flax.training.train_state import TrainState
+import chex
+import flax
 import jaxatari
 from jaxatari.wrappers import (
     NormalizeObservationWrapper,
@@ -69,6 +71,9 @@ def make_env(env_id, mods=[], pixel_based=True, native_downscaling=True, eval=Fa
                     )
                 )
             )
+            if game_rm is not None:
+                rm = RewardMachine(game_rm)
+                env = RewardMachineWrapper(env, rm)
         env = LogWrapper(env)
         return env
     return thunk
@@ -77,18 +82,10 @@ class QNetwork(nn.Module):
     action_dim: int
 
     @nn.compact
-    def __call__(self, x):
-        x = jnp.transpose(x, (0, 2, 3, 1))
-        x = x.astype(jnp.float32)
-        x = x / 255.0
-        x = nn.Conv(32, kernel_size=(8, 8), strides=(4, 4), padding="VALID")(x)
+    def __call__(self, x: jnp.ndarray):
+        x = nn.Dense(120)(x)
         x = nn.relu(x)
-        x = nn.Conv(64, kernel_size=(4, 4), strides=(2, 2), padding="VALID")(x)
-        x = nn.relu(x)
-        x = nn.Conv(64, kernel_size=(3, 3), strides=(1, 1), padding="VALID")(x)
-        x = nn.relu(x)
-        x = x.reshape((x.shape[0], -1))
-        x = nn.Dense(512)(x)
+        x = nn.Dense(84)(x)
         x = nn.relu(x)
         x = nn.Dense(self.action_dim)(x)
         return x
@@ -126,6 +123,30 @@ def single_run(config: dict):
     wandb.init(
         project=config.get("PROJECT", "jaxtari-blines"),
         entity=config.get("ENTITY", None),
+    )
+
+@chex.dataclass(frozen=True)
+class TimeStep:
+    obs: chex.Array
+    action: chex.Array
+    reward: chex.Array
+    done: chex.Array
+
+
+class CustomTrainState(TrainState):
+    target_network_params: flax.core.FrozenDict
+    timesteps: int
+    n_updates: int
+
+
+def dqn_run(config: dict):
+
+    config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
+
+    run_name = f'{config["ENV_ID"]}_{config["EXP_NAME"]}_{"oc" if not config["PIXEL_BASED"] else "pixel"}_{config["SEED"]}'
+    wandb.init(
+        project=config["PROJECT"],
+        entity=config["ENTITY"],
         config=config,
         name=run_name,
         save_code=True,
@@ -163,10 +184,15 @@ def single_run(config: dict):
         return obs.reshape(rng.shape[0], *obs_shape), state
 
     @jax.jit
+    def vmap_reset(key):
+        obs, state = jax.vmap(env.reset)(key)
+        return obs.squeeze(), state
+    
+    @jax.jit
     def vmap_step(state, action):
         next_obs, state, reward, terminated, truncated, info = jax.vmap(env.step)(state, action)
         next_done = jnp.logical_or(terminated, truncated)
-        return next_obs.reshape(action.shape[0], *obs_shape), state, reward, next_done, info
+        return next_obs.squeeze(), state, reward, next_done, info
 
     gamma = config.get("GAMMA", 0.99)
     batch_size = config.get("BATCH_SIZE", 32)
@@ -180,10 +206,45 @@ def single_run(config: dict):
 
     tx = optax.adam(learning_rate=config.get("LEARNING_RATE"), eps=1e-4)
 
-    agent_state = DQNTrainState.create(
+    # INIT BUFFER
+    buffer = fbx.make_flat_buffer(
+        max_length=config["BUFFER_SIZE"],
+        min_length=config["BUFFER_BATCH_SIZE"],
+        sample_batch_size=config["BUFFER_BATCH_SIZE"],
+        add_sequences=False,
+        add_batch_size=config["NUM_ENVS"],
+    )
+    buffer = buffer.replace(
+        init=jax.jit(buffer.init),
+        add=jax.jit(buffer.add, donate_argnums=0),
+        sample=jax.jit(buffer.sample),
+        can_sample=jax.jit(buffer.can_sample),
+    )
+    dummy_rng = jax.random.PRNGKey(0)
+    _action = env.action_space().sample(dummy_rng)
+    _obs, _env_state = env.reset(dummy_rng)
+    _obs, _env_state, _reward, _term, _trunc, _info = env.step(_env_state, _action)
+    _done = jnp.logical_or(_term, _trunc)
+    _timestep = TimeStep(obs=_obs.squeeze(), action=_action, reward=_reward, done=_done)
+    buffer_state = buffer.init(_timestep)
+
+    # INIT NETWORK AND OPTIMIZER
+    network = QNetwork(action_dim=env.action_space().n)
+    init_x = jnp.zeros(env.observation_space().shape)
+    key, _rng = jax.random.split(key)
+    network_params = network.init(_rng, init_x)
+
+    def linear_schedule(count):
+        frac = 1.0 - (count / config["NUM_UPDATES"])
+        return config["LR"] * frac
+
+    lr = linear_schedule if config.get("LR_LINEAR_DECAY", False) else config["LR"]
+    tx = optax.adam(learning_rate=lr)
+
+    train_state = CustomTrainState.create(
         apply_fn=network.apply,
-        params=q_params,
-        target_params=jax.tree.map(jnp.copy, q_params),
+        params=network_params,
+        target_network_params=jax.tree.map(lambda x: jnp.copy(x), network_params),
         tx=tx,
     )
 
@@ -413,5 +474,3 @@ def single_run(config: dict):
     eval_metrics = save_and_eval(global_step+1)
     wandb.finish()
     return eval_metrics
-
-
