@@ -90,17 +90,17 @@ class QNetwork(nn.Module):
         x = nn.Dense(self.action_dim)(x)
         return x
 
-class MLP_QNetwork(nn.Module):
-    action_dim: int
-
-    @nn.compact
-    def __call__(self, x):
-        x = nn.Dense(461, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
-        x = nn.relu(x)
-        x = nn.Dense(512, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
-        x = nn.relu(x)
-        x = nn.Dense(self.action_dim, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(x)
-        return x
+# class MLP_QNetwork(nn.Module):
+#     action_dim: int
+#
+#     @nn.compact
+#     def __call__(self, x):
+#         x = nn.Dense(461, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
+#         x = nn.relu(x)
+#         x = nn.Dense(512, kernel_init=orthogonal(np.sqrt(2)), bias_init=constant(0.0))(x)
+#         x = nn.relu(x)
+#         x = nn.Dense(self.action_dim, kernel_init=orthogonal(1.0), bias_init=constant(0.0))(x)
+#         return x
 
 class DQNTrainState(TrainState):
     target_params: flax.core.FrozenDict
@@ -131,7 +131,6 @@ class TimeStep:
     action: chex.Array
     reward: chex.Array
     done: chex.Array
-
 
 class CustomTrainState(TrainState):
     target_network_params: flax.core.FrozenDict
@@ -207,13 +206,24 @@ def dqn_run(config: dict):
     tx = optax.adam(learning_rate=config.get("LEARNING_RATE"), eps=1e-4)
 
     # INIT BUFFER
+    # if use_rm:
+    #     buffer = fbx.make_flat_buffer(
+    #         max_length=config["BUFFER_SIZE"],
+    #         min_length=config["BUFFER_BATCH_SIZE"],
+    #         sample_batch_size=config["BUFFER_BATCH_SIZE"],
+    #         add_sequences=False,
+    #         add_batch_size=config["NUM_ENVS"]
+    #     )
+    # else: 
     buffer = fbx.make_flat_buffer(
         max_length=config["BUFFER_SIZE"],
         min_length=config["BUFFER_BATCH_SIZE"],
         sample_batch_size=config["BUFFER_BATCH_SIZE"],
         add_sequences=False,
-        add_batch_size=config["NUM_ENVS"],
+        add_batch_size=(config["NUM_ENVS"] * game_rm.num_states())
     )
+
+
     buffer = buffer.replace(
         init=jax.jit(buffer.init),
         add=jax.jit(buffer.add, donate_argnums=0),
@@ -225,7 +235,7 @@ def dqn_run(config: dict):
     _obs, _env_state = env.reset(dummy_rng)
     _obs, _env_state, _reward, _term, _trunc, _info = env.step(_env_state, _action)
     _done = jnp.logical_or(_term, _trunc)
-    _timestep = TimeStep(obs=_obs.squeeze(), action=_action, reward=_reward, done=_done)
+    _timestep = TimeStep(obs=_obs.squeeze(), action=_action, reward=_reward, next_obs=_obs.squeeze(), done=_done)
     buffer_state = buffer.init(_timestep)
 
     # INIT NETWORK AND OPTIMIZER
