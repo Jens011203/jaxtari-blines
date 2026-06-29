@@ -249,7 +249,7 @@ def dqn_run(config: dict):
         return config["LR"] * frac
 
     lr = linear_schedule if config.get("LR_LINEAR_DECAY", False) else config["LR"]
-    tx = optax.adam(learning_rate=lr)
+    tx = optax.chain(optax.clip_by_global_norm(10.0), optax.adam(learning_rate=lr))
 
     train_state = CustomTrainState.create(
         apply_fn=network.apply,
