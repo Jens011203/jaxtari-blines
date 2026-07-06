@@ -182,16 +182,18 @@ def dqn_run(config: dict):
         obs, state = jax.vmap(env.reset)(rng)
         return obs.reshape(rng.shape[0], *obs_shape), state
 
+    obs_shape = env.observation_space().shape
+
     @jax.jit
     def vmap_reset(key):
         obs, state = jax.vmap(env.reset)(key)
-        return obs.squeeze(), state
+        return obs.reshape(key.shape[0], *obs_shape), state
     
     @jax.jit
     def vmap_step(state, action):
         next_obs, state, reward, terminated, truncated, info = jax.vmap(env.step)(state, action)
         next_done = jnp.logical_or(terminated, truncated)
-        return next_obs.squeeze(), state, reward, next_done, info
+        return next_obs.reshape(action.shape[0], *obs_shape), state, reward, next_done, info
 
     gamma = config.get("GAMMA", 0.99)
     batch_size = config.get("BATCH_SIZE", 32)
