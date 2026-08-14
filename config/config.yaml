@@ -14,9 +14,9 @@ SAVE_PATH: "./models"
 UPLOAD_MODEL: False
 
 # default env
-ENV_ID: seaquest
+ENV_ID: kangaroo 
 # pick reward machine. Must fit to selected env
-GAME_RM: seaquest
+GAME_RM: kangaroo 
 
 # choose mods to be active during training, default: None
 TRAIN_MODS: []

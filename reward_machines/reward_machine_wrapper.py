@@ -4,7 +4,7 @@ import jax
 import jax.numpy as jnp
 from flax import struct
 from jaxatari.wrappers import JaxatariWrapper, ObjectCentricState
-from agents.dqn.types import TimeStep
+from agents.dqn_own.types import TimeStep
 from reward_machines.reward_machine import RewardMachine
 import jaxatari.spaces as spaces
 import numpy as np
@@ -56,11 +56,11 @@ class RewardMachineWrapper(JaxatariWrapper):
     
 
     @functools.partial(jax.jit, static_argnums=(0,))
-    def _get_crm_experience(self, state, action, prev_obs, obs, env_done):
-        next_u, rm_reward, _fired_idx, rm_done = self.rm.step(state, obs)
-        prev_aug_obs = self._augment_obs(prev_obs, state)
+    def _get_crm_experience(self, u, action, prev_obs, obs, env_done):
+        next_u, rm_reward, _fired_idx, rm_done = self.rm.step(u, obs)
+        prev_aug_obs = self._augment_obs(prev_obs, u)
         aug_obs = self._augment_obs(obs, next_u)
-        return TimeStep(obs=prev_aug_obs, action=action, reward=rm_reward, next_obs=aug_obs, done=env_done)
+        return TimeStep(obs=prev_aug_obs, action=action, reward=rm_reward, next_obs=aug_obs, done=jnp.logical_or(env_done, rm_done))
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def step(self, state, action):

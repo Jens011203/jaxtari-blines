@@ -1,6 +1,6 @@
 import hydra
 from omegaconf import OmegaConf
-from agents.dqn.dqn import dqn_run
+from agents.dqn_own.dqn import dqn_run
 from agents.ppo.ppo import single_run
 
 @hydra.main(version_base=None, config_path="./config", config_name="config")

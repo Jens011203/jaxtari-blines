@@ -194,6 +194,8 @@ def single_run(config: dict):
     # Add Reward Machine
     rm_name = config.get("GAME_RM", None)
     game_rm = GAME_RM_REGISTRY[rm_name]() if rm_name is not None else None
+    use_rm = game_rm != None
+
     # env setup
     env = make_env(config["ENV_ID"], list(config["TRAIN_MODS"]), config["PIXEL_BASED"], config["NATIVE_DOWNSCALING"], False, game_rm)()
    
@@ -410,10 +412,6 @@ def single_run(config: dict):
                 eval_configs.append((mods_config, mod_label))
 
         metrics = {}
-
-        rm_name = config.get("GAME_RM", None)
-        game_rm = GAME_RM_REGISTRY[rm_name]() if rm_name is not None else None
-        use_rm  = game_rm is not None
 
         for mods_config, mod_label in eval_configs:
             print(f"Evaluating on {mod_label} ...")
