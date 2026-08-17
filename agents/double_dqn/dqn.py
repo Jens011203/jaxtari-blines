@@ -25,7 +25,7 @@ from reward_machines.reward_machine import RewardMachine
 from reward_machines.reward_machine_wrapper import RewardMachineWrapper
 from reward_machines.rm_registry import GAME_RM_REGISTRY
 
-def make_env(env_id, mods=[], pixel_based=True, native_downscaling=True, eval=False, game_rm: GameRM | None=None):
+def make_env(env_id, mods=[], pixel_based=True, native_downscaling=True, eval=False, game_rm: GameRM | None=None, use_crm: bool = False, use_shaping: bool = False, gamma: float = 0.99):
     assert mods is None or isinstance(mods, list), "mods must be None or a list of strings"
     if mods is not None and len(mods) == 0:
         mods = None
@@ -81,7 +81,7 @@ def make_env(env_id, mods=[], pixel_based=True, native_downscaling=True, eval=Fa
             )
             if game_rm is not None:
                 rm = RewardMachine(game_rm)
-                env = RewardMachineWrapper(env,rm)
+                env = RewardMachineWrapper(env,rm, use_crm, use_shaping, gamma)
         env = LogWrapper(env)
         return env
     return thunk
@@ -131,6 +131,9 @@ def dqn_run(config: dict):
     rm_name = config.get("GAME_RM", None)
     game_rm: GameRM | None = GAME_RM_REGISTRY[rm_name]() if rm_name is not None else None
     use_rm = game_rm is not None
+    use_crm = use_rm & config.get("USE_CRM", False)
+    use_shaping = use_rm & config.get("USE_SHAPING", False)
+    gamma = config.get("GAMMA", 0)
     num_transitions = len(game_rm.TRANSITIONS) if use_rm else 0
 
     # env setup
@@ -140,7 +143,11 @@ def dqn_run(config: dict):
         config["PIXEL_BASED"],
         config["NATIVE_DOWNSCALING"],
         False,
-        game_rm)()
+        game_rm,
+        use_crm,
+        use_shaping,
+        gamma
+    )()
 
     obs_shape = env.observation_space().shape
 
@@ -183,7 +190,7 @@ def dqn_run(config: dict):
         obs, _s, reward, done, info = vmap_step(state, action)
         if use_rm:
             return jax.tree.map(
-                lambda x: x.reshape((-1,) + x.shape[2:]), info["crm_experiences"]
+                lambda x: x.reshape((-1,) + x.shape[2:]), info["experiences"]
             )
         return TimeStep(obs=last_obs, action=action, reward=reward, next_obs=obs, done=done)
 
@@ -271,7 +278,7 @@ def dqn_run(config: dict):
         # BUFFER UPDATE
         if use_rm:
             to_add = jax.tree.map(
-                lambda x: x.reshape((-1,) + x.shape[2:]), info["crm_experiences"]
+                lambda x: x.reshape((-1,) + x.shape[2:]), info["experiences"]
             )
         else:
             to_add = TimeStep(
@@ -354,6 +361,7 @@ def dqn_run(config: dict):
         if use_rm:
             fired = info["rm_fired_idx"]
             metrics["rm_reward"] = info["rm_reward"].mean()
+            metrics["shaping"] = info["shaping"].mean()
             metrics["fired_hist"] = jnp.sum(
                 jax.nn.one_hot(fired, num_transitions), axis=0
             )

@@ -1,6 +1,6 @@
 # experiment params
 NAME_INITIALS: "JF"
-NUM_SEEDS: 3
+NUM_SEEDS: 1
 SEED: 1
 
 # wandb params
@@ -14,9 +14,9 @@ SAVE_PATH: "./models"
 UPLOAD_MODEL: False
 
 # default env
-ENV_ID: kangaroo 
+ENV_ID: seaquest
 # pick reward machine. Must fit to selected env
-# GAME_RM: kangaroo 
+GAME_RM: seaquest
 
 # choose mods to be active during training, default: None
 TRAIN_MODS: []
