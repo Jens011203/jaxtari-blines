@@ -48,40 +48,16 @@ def evaluate_dqn(
 
     reset_keys = jax.random.split(key, eval_episodes)
     next_obs, env_states = jax.vmap(wrapped_reset)(reset_keys)
-
-    carry = (next_obs, env_states, reset_keys)
-    all_first_states = []
-    all_dones = []
-    all_rewards = []
-    done_ever = jnp.zeros(eval_episodes, dtype=jnp.bool_)
-
-    @jax.jit
-    def scanned_step(carry):
-        carry, (first_states_chunk, dones_chunk, rewards_chunk, actions_chunk) = jax.lax.scan(
-            step_fn, carry, None, length=1000
-        )
-        return carry, (first_states_chunk, dones_chunk, rewards_chunk, actions_chunk)
-
-    while not jnp.all(done_ever):
-        carry, (first_states_chunk, dones_chunk, rewards_chunk, actions_chunk) = scanned_step(carry)
-        all_first_states.append(first_states_chunk)
-        all_dones.append(dones_chunk)
-        all_rewards.append(rewards_chunk)
-        done_ever = done_ever | jnp.any(dones_chunk, axis=0)
-
-    first_states_history = jax.tree.map(
-        lambda *xs: jnp.concatenate(xs, axis=0), *all_first_states
+    _, (first_states, dones, rewards, actions) = jax.lax.scan(
+        step_fn, (next_obs, env_states), None, length=10_000
     )
-    dones = jnp.concatenate(all_dones, axis=0)
-    rewards = jnp.concatenate(all_rewards, axis=0)
 
     # mask everything after the first done per episode, then sum the reward
     first_done = jnp.argmax(dones, axis=0)
     has_finished = jax.lax.cummax(dones.astype(jnp.int32), axis=0)
     mask_after_first_done = jnp.pad(has_finished[:-1, :], ((1, 0), (0, 0)), constant_values=0)
-    masked_rewards = rewards * (1 - mask_after_first_done)
-    episodic_returns = jnp.sum(masked_rewards, axis=0) 
-    print(f"Evaluated {eval_episodes} episodes, mean return: {episodic_returns.mean():.2f}, std return: {episodic_returns.std():.2f}")
+    rewards = rewards * (1 - mask_after_first_done)
+    episodic_returns = jnp.sum(rewards, axis=0)
 
     # env states of the first episode (for video), same nesting path as PPO eval
     if use_rm:
