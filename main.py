@@ -1,7 +1,5 @@
 import hydra
 from omegaconf import OmegaConf
-from agents.dqn_own.dqn import dqn_run
-from agents.ppo.ppo import single_run
 
 @hydra.main(version_base=None, config_path="./config", config_name="config")
 def main(config):
@@ -19,6 +17,7 @@ def main(config):
     starting_seed = merged_config.get("SEED", 0)
     for seed in range(n_seeds):
         if merged_config["ALG"] == "PPO":
+            from agents.ppo.ppo import single_run
             run_fn = single_run
         elif merged_config["ALG"] == "DQN":  
             from agents.dqn.dqn import single_run  
@@ -26,7 +25,8 @@ def main(config):
         elif merged_config["ALG"] == "RAINBOW":  
             from agents.rainbow.rainbow import single_run  
             run_fn = single_run
-        elif merged_config["ALG"] == "DQN_OWN":
+        elif merged_config["ALG"] == "DOUBLE_DQN":
+            from agents.double_dqn.dqn import dqn_run
             run_fn = dqn_run
 
         used_seed = starting_seed + seed

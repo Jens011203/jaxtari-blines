@@ -30,15 +30,15 @@ class RewardMachine:
         return clause_ok & from_ok
 
     @functools.partial(jax.jit, static_argnums=(0,))
-    def step(self, current_state, game_obs):
-        true_props = self.get_events(game_obs)
+    def step_from_props(self, current_state, true_props):
         valid = self._match_transitions(current_state, true_props)
-
         any_valid = jnp.any(valid)
         first_idx = jnp.argmax(valid)
-        fired_idx = jnp.where(any_valid, first_idx, -1)
-
         next_state = jnp.where(any_valid, self.to_states[first_idx], current_state)
-        rew        = jnp.where(any_valid, self.rewards[first_idx], 0.0)
-        done       = (next_state == self.terminal_state)
-        return next_state, rew, fired_idx, done
+        reward = jnp.where(any_valid, self.rewards[first_idx], 0.0)
+        fired_idx = jnp.where(any_valid, first_idx, -1)
+        done = next_state == self.terminal_state
+        return next_state, reward, fired_idx, done
+
+    def step(self, current_state, game_obs):
+        return self.step_from_props(current_state, self.get_events(game_obs))
