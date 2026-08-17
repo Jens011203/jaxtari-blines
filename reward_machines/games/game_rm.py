@@ -53,3 +53,7 @@ class GameRM(ABC):
     def get_events(self, obs) -> jnp.ndarray:
         """Game-specific labelling: obs -> boolean proposition vector."""
         ...
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def potential(self, obs: jnp.ndarray) -> jnp.ndarray:
+        """Shaping potential Phi(s). Default 0.0 means no shaping for this game."""
+        return jnp.zeros(())

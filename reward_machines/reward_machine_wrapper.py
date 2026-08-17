@@ -16,10 +16,19 @@ class RewardMachineState:
     prev_obs: jnp.ndarray
 
 class RewardMachineWrapper(JaxatariWrapper):
-    def __init__(self, env: FlattenObservationWrapper, reward_machine: RewardMachine):
+    def __init__(self,
+                 env: FlattenObservationWrapper,
+                 reward_machine: RewardMachine,
+                 use_crm: bool = False,
+                 use_shaping: bool = False,
+                 gamma: float = 0.99):
+
         super().__init__(env)
         self.rm = reward_machine
+        self.use_crm = use_crm
         self.states = jnp.arange(self.rm.num_states)
+        self.use_shaping = use_shaping
+        self.gamma = gamma
 
         base = self._env.observation_space()
         self._observation_space = spaces.Box(
@@ -51,19 +60,37 @@ class RewardMachineWrapper(JaxatariWrapper):
     
 
     @functools.partial(jax.jit, static_argnums=(0,))
-    def _get_crm_experience(self, u, action, prev_obs, obs, env_done, env_reward):
-        next_u, rm_reward, _fired_idx, rm_done = self.rm.step(u, obs)
+    def _get_crm_experience(self, u, action, prev_obs, obs, true_props, shaping, env_done):
+        # Events are computed once by the caller and shared across all RM states.
+        next_u, rm_reward, _fired_idx, rm_done = self.rm.step_from_props(u, true_props)
         prev_aug_obs = self._augment_obs(prev_obs, u)
         aug_obs = self._augment_obs(obs, next_u)
-        total_reward = rm_reward
-        return TimeStep(obs=prev_aug_obs, action=action, reward=total_reward, next_obs=aug_obs, done=jnp.logical_or(env_done, rm_done))
+        return TimeStep(
+            obs=prev_aug_obs,
+            action=action,
+            reward=rm_reward + shaping,
+            next_obs=aug_obs,
+            done=jnp.logical_or(env_done, rm_done),
+        )
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def step(self, state, action):
         obs, env_state, _env_reward, terminated, truncated, info = self._env.step(state.env_state, action)
         done = terminated | truncated
-        next_u, rm_reward, fired_idx, rm_done = self.rm.step(state.u, obs)
-        crm_experiences = jax.vmap(self._get_crm_experience, in_axes=(0, None, None, None, None, None))(self.states, action, state.prev_obs, obs, done, _env_reward)
+
+        true_props = self.rm.get_events(obs)
+
+        shaping = (
+            self.gamma * self.rm.potential(obs) - self.rm.potential(state.prev_obs)
+            if self.use_shaping
+            else jnp.zeros(())
+        )
+        next_u, rm_reward, fired_idx, rm_done = self.rm.step_from_props(state.u, true_props)
+
+        rm_states = self.states if self.use_crm else jnp.atleast_1d(state.u)
+        experiences = jax.vmap(
+            self._get_crm_experience, in_axes=(0, None, None, None, None, None, None)
+        )(rm_states, action, state.prev_obs, obs, true_props, shaping, done)
 
         episode_over = jnp.logical_or(info["env_done"], truncated)
         next_u = jnp.where(episode_over, self.rm.init_state, next_u)
@@ -74,5 +101,6 @@ class RewardMachineWrapper(JaxatariWrapper):
 
         info["rm_fired_idx"] = fired_idx
         info["rm_reward"] = rm_reward
-        info["crm_experiences"] = crm_experiences
+        info["shaping"] = shaping
+        info["experiences"] = experiences
         return aug_obs, new_state, rm_reward, done, truncated, info

@@ -1,6 +1,5 @@
 ALG: DQN
 EXP_NAME: dqn_rm_crm
-USE_CRM: True #Game RM must be set then
 
 PIXEL_BASED: False
 NATIVE_DOWNSCALING: True

@@ -14,6 +14,7 @@ class RewardMachine:
         self.rewards            = game_rm.rewards()
         self.terminal_state     = game_rm.terminal_state()  # only one final teminal state for all states
         self.get_events         = game_rm.get_events
+        self.potential          = game_rm.potential
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def _match_transitions(self, current_state, true_props):

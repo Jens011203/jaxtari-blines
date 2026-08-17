@@ -6,6 +6,9 @@ from reward_machines.games.utils import build_transitions
 
 
 class SeaquestRm(GameRM):
+
+    PHI_PER_DIVER = 1.0
+    MAX_DIVERS = 6
     
     PROP_INDEX = {
         "lost_life": 0,
@@ -126,3 +129,10 @@ class SeaquestRm(GameRM):
             dove,
             at_surface_idle,
         ]).astype(jnp.int32)
+
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def potential(self, obs):
+        """Phi(s) = number of divers currently collected."""
+        divers = obs[-1] * 6.0
+        return jnp.clip(divers, 0.0, self.MAX_DIVERS) * self.PHI_PER_DIVER
