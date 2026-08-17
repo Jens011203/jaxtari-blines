@@ -1,5 +1,5 @@
-ALG: DQN
-EXP_NAME: dqn
+ALG: DQN_OC_OC
+EXP_NAME: dqn-tuned-oc
 
 PIXEL_BASED: False
 NATIVE_DOWNSCALING: True
