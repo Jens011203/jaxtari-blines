@@ -149,9 +149,12 @@ class FrostbiteRm(GameRM):
         )
 
         at_igloo_door = (
-            reached_shore
-            & (bailey_x_now >= DOOR_X_MIN)
-            & (bailey_x_now <= DOOR_X_MAX)
+                (igloo_now >= 1.0)
+                & (bailey_active_now > 0.5)
+                & (bailey_x_now >= DOOR_X_MIN)
+                & (bailey_x_now <= DOOR_X_MAX)
+                & (bailey_y_now >= (50.0 / 210.0))
+                & (bailey_y_now <= (56.0 / 210.0))
         )
 
         # Reward movement that actually reduces horizontal distance
