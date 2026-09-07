@@ -1,3 +1,16 @@
+"""
+Reward machine for JAXAtari Frostbite.
+
+The Frostbite-specific reward machine, event definitions, and task
+decomposition were developed for this project.
+
+The implementation follows the Reward Machine infrastructure provided by
+this repository (GameRM, RewardMachine, and build_transitions). Game-specific
+event detection is based on the object-centric Frostbite observations exposed
+by JAXAtari.
+"""
+
+
 import functools
 
 import jax
