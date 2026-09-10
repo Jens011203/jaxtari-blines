@@ -1,0 +1,42 @@
+ALG: HRM
+EXP_NAME: hrm_rm
+PIXEL_BASED: False          # HRM needs symbolic events; asserted in hrm.py
+NATIVE_DOWNSCALING: True    # unused when PIXEL_BASED is False, kept for schema parity
+TOTAL_TIMESTEPS: 20_000_000
+NUM_ENVS: 16
+GAMMA: 0.99
+USE_SHAPING: False          # affects the meta return only; options always use
+                            # binary pseudo-rewards
+LEARNING_STARTS: 20000
+TRAINING_INTERVAL: 4
+TARGET_UPDATE_INTERVAL: 500
+TAU: 1.0
+
+# --- option level ---
+# Same key names as DOUBLE_DQN: the option level *is* a flat double DQN, just
+# with one head per option. Carry your tuned CRM values over unchanged.
+LR: 2.5e-4
+LR_LINEAR_DECAY: False
+BUFFER_SIZE: 300_000
+BUFFER_BATCH_SIZE: 512
+EPSILON_START: 1.0
+EPSILON_FINISH: 0.1
+EPSILON_ANNEAL_TIME: 5_000_000
+
+# --- meta level (new) ---
+# One row per option execution instead of one per step, so this level sees
+# orders of magnitude fewer samples than the option level. Hence the smaller
+# buffer and batch, the lower LR, and the higher epsilon floor.
+META_LR: 1.0e-4
+META_BUFFER_SIZE: 100_000
+META_BATCH_SIZE: 64
+META_EPSILON_START: 1.0
+META_EPSILON_FINISH: 0.1
+META_EPSILON_ANNEAL_TIME: 200_000
+
+# --- options (new) ---
+# Hard timeout so a stuck option releases control and still emits a meta
+# transition. Not in the paper, but required in practice.
+OPTION_MAX_STEPS: 200
+
+EVAL_DURING_TRAIN: True
