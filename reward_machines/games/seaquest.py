@@ -23,52 +23,52 @@ class SeaquestRm(GameRM):
     #   lost_life > diver_collected > scored > surfaced > at_surface_idle
     TRANSITIONS = [
         # State 0: 0 divers
-        {"from": 0, "true": ["lost_life"], "to": 0, "reward": -0.3},                                # t0
-        {"from": 0, "true": ["diver_collected"], "to": 1, "reward": 1.0},                           # t1
-        {"from": 0, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 0, "reward": 0.5},  # t2
-        {"from": 0, "true": ["surfaced"], "false": ["diver_collected"], "to": 0, "reward": -0.5},   # t3
-        {"from": 0, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 0, "reward": -0.02},  # t4
-
+        {"from": 0, "true": ["lost_life"], "to": 0, "reward": -0.5},                                # t0
+        {"from": 0, "true": ["diver_collected"], "to": 1, "reward": 1.0, "option": True},           # t1
+        {"from": 0, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 0, "reward": 0.05},  # t2
+        {"from": 0, "true": ["surfaced"], "false": ["diver_collected"], "to": 0, "reward": 0.0},   # t3
+        {"from": 0, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 0, "reward": -0.20},  # t4
+ 
         # State 1: 1 diver
-        {"from": 1, "true": ["lost_life"], "to": 0, "reward": -0.5},                                # t5
-        {"from": 1, "true": ["diver_collected"], "to": 2, "reward": 1.0},                           # t6
-        {"from": 1, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 1, "reward": 0.5},  # t7
+        {"from": 1, "true": ["lost_life"], "to": 0, "reward": -0.6},                                # t5
+        {"from": 1, "true": ["diver_collected"], "to": 2, "reward": 1.0, "option": True},           # t6
+        {"from": 1, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 1, "reward": 0.05},  # t7
         {"from": 1, "true": ["surfaced"], "false": ["diver_collected"], "to": 0, "reward": 0.0},    # t8
-        {"from": 1, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 1, "reward": -0.02},  # t9
-
+        {"from": 1, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 1, "reward": -0.20},  # t9
+ 
         # State 2: 2 divers
         {"from": 2, "true": ["lost_life"], "to": 1, "reward": -0.7},                                # t10
-        {"from": 2, "true": ["diver_collected"], "to": 3, "reward": 1.0},                           # t11
-        {"from": 2, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 2, "reward": 0.5},  # t12
+        {"from": 2, "true": ["diver_collected"], "to": 3, "reward": 1.0, "option": True},           # t11
+        {"from": 2, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 2, "reward": 0.05},  # t12
         {"from": 2, "true": ["surfaced"], "false": ["diver_collected"], "to": 1, "reward": 0.0},    # t13
-        {"from": 2, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 2, "reward": -0.02},  # t14
-
+        {"from": 2, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 2, "reward": -0.20},  # t14
+ 
         # State 3: 3 divers
-        {"from": 3, "true": ["lost_life"], "to": 2, "reward": -1.0},                                # t15
-        {"from": 3, "true": ["diver_collected"], "to": 4, "reward": 1.0},                           # t16
-        {"from": 3, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 3, "reward": 0.5},  # t17
+        {"from": 3, "true": ["lost_life"], "to": 2, "reward": -0.8},                                # t15
+        {"from": 3, "true": ["diver_collected"], "to": 4, "reward": 2.0, "option": True},           # t16
+        {"from": 3, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 3, "reward": 0.05},  # t17
         {"from": 3, "true": ["surfaced"], "false": ["diver_collected"], "to": 2, "reward": 0.0},    # t18
-        {"from": 3, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 3, "reward": -0.02},  # t19
-
+        {"from": 3, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 3, "reward": -0.20},  # t19
+ 
         # State 4: 4 divers
-        {"from": 4, "true": ["lost_life"], "to": 3, "reward": -1.3},                                # t20
-        {"from": 4, "true": ["diver_collected"], "to": 5, "reward": 1.0},                           # t21
-        {"from": 4, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 4, "reward": 0.5},  # t22
+        {"from": 4, "true": ["lost_life"], "to": 3, "reward": -0.9},                                # t20
+        {"from": 4, "true": ["diver_collected"], "to": 5, "reward": 3.0, "option": True},           # t21
+        {"from": 4, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 4, "reward": 0.05},  # t22
         {"from": 4, "true": ["surfaced"], "false": ["diver_collected"], "to": 3, "reward": 0.0},    # t23
-        {"from": 4, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 4, "reward": -0.02},  # t24
-
+        {"from": 4, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 4, "reward": -0.20},  # t24
+ 
         # State 5: 5 divers
-        {"from": 5, "true": ["lost_life"], "to": 4, "reward": -1.6},                                # t25
-        {"from": 5, "true": ["diver_collected"], "to": 6, "reward": 1.0},                           # t26
-        {"from": 5, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 5, "reward": 0.5},  # t27
+        {"from": 5, "true": ["lost_life"], "to": 4, "reward": -1.0},                                # t25
+        {"from": 5, "true": ["diver_collected"], "to": 6, "reward": 5.0, "option": True},           # t26
+        {"from": 5, "true": ["scored"], "false": ["diver_collected", "surfaced"], "to": 5, "reward": 0.05},  # t27
         {"from": 5, "true": ["surfaced"], "false": ["diver_collected"], "to": 4, "reward": 0.0},    # t28
-        {"from": 5, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 5, "reward": -0.02},  # t29
-
-        # State 6: 6 divers — goal.
+        {"from": 5, "true": ["at_surface_idle"], "false": ["lost_life", "diver_collected", "scored", "surfaced"], "to": 5, "reward": -0.20},  # t29
+ 
+        # State 6: 6 divers -- goal.
         {"from": 6, "true": ["lost_life"], "to": 5, "reward": -2.0},                                # t30
-        {"from": 6, "true": ["scored"], "false": ["surfaced"], "to": 6, "reward": 0.5},             # t31
-        {"from": 6, "true": ["surfaced"], "to": 0, "reward": 10.0},                                 # t32
-        {"from": 6, "true": ["at_surface_idle"], "false": ["lost_life", "scored", "surfaced"], "to": 6, "reward": -0.02},  # t33
+        {"from": 6, "true": ["scored"], "false": ["surfaced"], "to": 6, "reward": 0.05},            # t31
+        {"from": 6, "true": ["surfaced"], "to": 0, "reward": 10.0, "option": True},                 # t32
+        {"from": 6, "true": ["at_surface_idle"], "false": ["lost_life", "scored", "surfaced"], "to": 6, "reward": -0.00},  # t33
     ]
 
     def __init__(self):

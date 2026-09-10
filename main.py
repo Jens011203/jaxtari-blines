@@ -28,6 +28,9 @@ def main(config):
         elif merged_config["ALG"] == "DOUBLE_DQN":
             from agents.double_dqn.dqn import dqn_run
             run_fn = dqn_run
+        elif merged_config["ALG"] == "HRM":
+            from agents.double_dqn_hrm.hrm import hrm_run
+            run_fn =  hrm_run
 
         used_seed = starting_seed + seed
         print(f"Running seed {used_seed} ...")
