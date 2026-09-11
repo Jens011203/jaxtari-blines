@@ -82,16 +82,6 @@ class RewardMachineWrapper(JaxatariWrapper):
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def _option_signals(self, u, true_props):
-        """Per-option pseudo-rewards and the option termination flag.
- 
-        ``clause_matches`` is the state-independent formula check: an option's
-        pseudo-reward must not depend on the current RM state, since that
-        independence is what lets edges from different states share a policy.
- 
-        The scatter matrix maps edges to options; non-option edges carry index
-        -1, whose one-hot row is all zeros, so they contribute nothing without
-        needing to be filtered out.
-        """
         clause = self.rm.clause_matches(true_props)  # (T,) bool
         option_rewards = jnp.max(
             self.options.scatter * clause[:, None].astype(jnp.float32), axis=0
