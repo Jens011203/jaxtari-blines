@@ -33,6 +33,8 @@ from reward_machines.reward_machine_wrapper import RewardMachineWrapper
 from reward_machines.games.game_rm import GameRM
 from reward_machines.rm_registry import GAME_RM_REGISTRY
 
+_NEG_INF = -1e9
+
 def make_env(env_id, mods=[], game_rm: GameRM | None = None, options: OptionSpec = None,
              eval=False, use_shaping=False, gamma=0.99):
 
