@@ -1,15 +1,8 @@
 """Static option structure derived from a GameRM.
 
-HRM keys options on the *formula* of an RM edge, not on the edge itself, so
+HRM keys options on the formula of an RM edge, not on the edge itself, so
 edges labelled with the same formula share a single option policy. Everything
 here is computed once in Python and baked into the jitted graph as constants.
-
-An edge becomes an option only if it is explicitly marked with
-``"option": True`` in ``GameRM.TRANSITIONS``. This is deliberate: failure edges
-(``lost_life``), penalty edges (``at_surface_idle``) and bookkeeping self-loops
-(``scored``) are valid RM transitions but terrible subgoals -- an option is a
-policy trained to *make its formula true*, and you do not want a policy whose
-objective is to die.
 """
 
 from dataclasses import dataclass
