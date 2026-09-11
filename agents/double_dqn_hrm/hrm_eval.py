@@ -1,13 +1,3 @@
-"""Greedy hierarchical rollout.
-
-Mirrors agents/double_dqn/dqn_eval.py: same batching convention, same chunked
-scan until every episode has finished, same reward masking, same state
-unwrapping for video.
-
-The hierarchy adds one thing: the option currently in flight is part of the
-rollout carry, and the meta-controller is consulted only when one ends.
-"""
-
 from typing import Callable
 
 import flax.linen as nn
@@ -45,7 +35,6 @@ def evaluate_hrm(
 
     @jax.jit
     def wrapped_step(state, action):
-        """Wraps the env step to correct the observation shape."""
         next_obs, next_state, reward, terminated, truncated, info = env.step(
             state, action.squeeze()
         )
@@ -53,20 +42,16 @@ def evaluate_hrm(
         return next_obs.squeeze()[None, ...], next_state, reward, done, info
 
     def u_of(obs):
-        """RM state from the one-hot tail, rather than by walking env_state."""
         return jnp.argmax(obs[..., -num_rm_states:], axis=-1)
 
     @jax.jit
     def get_option(params, obs):
-        """Greedy over the options available in the current RM state."""
         q_vals = meta_net.apply(params, obs)[0]  # (num_options,)
         mask = availability[u_of(obs[0])]
         return jnp.argmax(jnp.where(mask, q_vals, _NEG_INF))
 
     @jax.jit
     def get_action(params, obs, option):
-        """Greedy under the executing option's head. Options never see the RM
-        one-hot, so it is sliced off here."""
         q_vals = option_net.apply(params, obs[..., :raw_dim])[0]  # (num_options, A)
         return jnp.argmax(q_vals[option], axis=-1)
 
@@ -135,8 +120,7 @@ def evaluate_hrm(
     episodic_returns = jnp.sum(masked_rewards, axis=0)
 
     # How the meta-controller spent the first episode. With one option per RM
-    # state this is fully determined by the RM and tells you nothing; with a
-    # real choice it is the most informative number in the eval.
+    # state this is fully determined by the RM and tells you nothing
     valid = 1 - mask_after_first_done[:, 0]
     share = [
         float(jnp.sum((options_history[:, 0] == i) * valid) / jnp.maximum(jnp.sum(valid), 1))
@@ -151,8 +135,6 @@ def evaluate_hrm(
         f"{n}={s:.0%}" for n, s in zip(options.names, share)
     ))
 
-    # env states of the first episode (for video). HRM always runs the reward
-    # machine wrapper, so this is the use_rm nesting path from dqn_eval.
     state = first_states_history.atari_state.env_state.atari_state.env_state
     env_states_until_done = jax.tree.map(lambda x: x[: first_done[0] + 1], state)
     return episodic_returns, env_states_until_done
