@@ -167,7 +167,7 @@ def dqn_run(config: dict):
 
 
     #Init Buffer
-    add_batch_size = config["NUM_ENVS"] * (game_rm.num_states() if use_rm else 1)
+    add_batch_size = config["NUM_ENVS"] * (game_rm.num_states() if use_crm else 1)
     buffer = fbx.make_flat_buffer(
         max_length=config["BUFFER_SIZE"],
         min_length=config["BUFFER_BATCH_SIZE"],
