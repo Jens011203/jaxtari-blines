@@ -1,3 +1,4 @@
+from reward_machines.games.enduro import EnduroRm
 from reward_machines.games.pong_rm import PongRm
 from reward_machines.games.frostbite_rm import FrostbiteRm
 from reward_machines.games.freeway_rm import FreewayRm
@@ -17,5 +18,6 @@ GAME_RM_REGISTRY = {
     "tennis": TennisRm,
     "kangaroo": KangarooRm,
     "beamrider": BeamriderRm,
-    "phoenix": PhoenixRm
+    "phoenix": PhoenixRm,
+    "enduro": EnduroRm
 }
