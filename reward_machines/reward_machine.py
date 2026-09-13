@@ -17,18 +17,19 @@ class RewardMachine:
         self.potential          = game_rm.potential
 
     @functools.partial(jax.jit, static_argnums=(0,))
-    def _match_transitions(self, current_state, true_props):
+    def clause_matches(self, true_props):
         true_ok = jnp.all(
             self.require_true * true_props == self.require_true, axis=1
         )
         false_ok = jnp.all(
             self.require_false * true_props == 0, axis=1
         )
-        clause_ok = true_ok & false_ok
+        return true_ok & false_ok
 
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def _match_transitions(self, current_state, true_props):
         # only transitions leaving the current state count
-        from_ok = self.from_states == current_state
-        return clause_ok & from_ok
+        return self.clause_matches(true_props) & (self.from_states == current_state)
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def step_from_props(self, current_state, true_props):
