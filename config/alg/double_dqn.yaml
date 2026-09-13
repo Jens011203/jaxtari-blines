@@ -1,5 +1,5 @@
 ALG: DOUBLE_DQN
-EXP_NAME: dqn_rm
+EXP_NAME: dqn_rm_crm
 
 PIXEL_BASED: False
 NATIVE_DOWNSCALING: True
