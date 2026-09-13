@@ -48,9 +48,26 @@ def evaluate_dqn(
 
     reset_keys = jax.random.split(key, eval_episodes)
     next_obs, env_states = jax.vmap(wrapped_reset)(reset_keys)
-    _, (first_states, dones, rewards, actions) = jax.lax.scan(
-        step_fn, (next_obs, env_states), None, length=10_000
-    )
+    carry = (next_obs, env_states)
+    all_first_states, all_dones, all_rewards, all_actions = [], [], [], []
+    done_ever = jnp.zeros(eval_episodes, dtype=jnp.bool_)
+
+    @jax.jit
+    def scanned_step(carry):
+        return jax.lax.scan(step_fn, carry, None, length=1000)
+
+    while not jnp.all(done_ever):
+        carry, (fc, dc, rc, ac) = scanned_step(carry)
+        all_first_states.append(fc)
+        all_dones.append(dc)
+        all_rewards.append(rc)
+        all_actions.append(ac)
+        done_ever = done_ever | jnp.any(dc, axis=0)
+
+    first_states = jax.tree.map(lambda *xs: jnp.concatenate(xs, axis=0), *all_first_states)
+    dones = jnp.concatenate(all_dones, axis=0)
+    rewards = jnp.concatenate(all_rewards, axis=0)
+    actions = jnp.concatenate(all_actions, axis=0)
 
     # mask everything after the first done per episode, then sum the reward
     first_done = jnp.argmax(dones, axis=0)
