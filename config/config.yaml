@@ -5,7 +5,7 @@ SEED: 1
 
 # wandb params
 WANDB_MODE: "online"  # set to online to activate wandb
-ENTITY: "jensf-tu-darmstadt"
+ENTITY: "jaxtari-blines"
 PROJECT: "jaxtari-blines"
 
 # where to save the params (if None, will not save)
