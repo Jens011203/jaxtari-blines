@@ -38,5 +38,3 @@ META_EPSILON_ANNEAL_TIME: 200_000
 # Hard timeout so a stuck option releases control and still emits a meta
 # transition. Not in the paper, but required in practice.
 OPTION_MAX_STEPS: 200
-
-EVAL_DURING_TRAIN: True
