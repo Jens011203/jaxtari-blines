@@ -9,20 +9,17 @@ class EnduroRm(GameRM):
 
     NUM_FEATURES = 17
     DIST_LEFT_OFFSET, DIST_RIGHT_OFFSET = -2, -1
-    EDGE_THRESHOLD = 10.0
+    EDGE_THRESHOLD = 0.12
+    MAX_CLEARANCE = 0.25
 
     PROP_INDEX = {
         "near_edge": 0,
     }
 
+    # Single state, two complementary self-loops
     TRANSITIONS = [
-        # State 0 (u0): driving away from the edge
-        {"from": 0, "true": ["near_edge"], "to": 1, "reward": -0.2},
-        {"from": 0, "false": ["near_edge"], "to": 0, "reward": 0.0},
-
-        # State 1 (u1): currently hugging the edge
-        {"from": 1, "true": ["near_edge"], "to": 1, "reward": -0.1},
-        {"from": 1, "false": ["near_edge"], "to": 0, "reward": 0.05},
+        {"from": 0, "true": ["near_edge"], "to": 0, "reward": -0.1},
+        {"from": 0, "false": ["near_edge"], "to": 0, "reward": 0.01, "option": True},
     ]
 
     def __init__(self):
@@ -30,7 +27,7 @@ class EnduroRm(GameRM):
             len(self.PROP_INDEX), self.PROP_INDEX, self.TRANSITIONS
         )
 
-    def num_states(self):     return 2
+    def num_states(self):     return 1
     def init_state(self):     return 0
     def terminal_state(self): return -99
 
@@ -49,9 +46,8 @@ class EnduroRm(GameRM):
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def potential(self, obs):
-        """Phi(s) = clearance to the nearer track edge (higher = safer)."""
+        """Phi(s) = normalized clearance to the nearer track edge (higher = safer)."""
         dist_left = obs[self.DIST_LEFT_OFFSET]
         dist_right = obs[self.DIST_RIGHT_OFFSET]
         clearance = jnp.minimum(dist_left, dist_right)
-        return jnp.clip(clearance, 0.0, 50.0)
-
+        return jnp.clip(clearance / self.MAX_CLEARANCE, 0.0, 1.0)
