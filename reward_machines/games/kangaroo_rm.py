@@ -81,6 +81,7 @@ class KangarooRm(GameRM):
             "true": ["on_floor_1"],
             "to": 1,
             "reward": PHI[1] - PHI[0],
+            "option": True,
         },
         {
             "from": 0,
@@ -106,6 +107,7 @@ class KangarooRm(GameRM):
             "true": ["monkey_punched"],
             "to": 0,
             "reward": MONKEY_REWARD,
+            "option": True,
         },
 
         # =====================================================
@@ -136,6 +138,7 @@ class KangarooRm(GameRM):
             "true": ["on_floor_2"],
             "to": 2,
             "reward": PHI[2] - PHI[1],
+            "option": True,
         },
         {
             "from": 1,
@@ -149,12 +152,14 @@ class KangarooRm(GameRM):
             "true": ["fruit_collected"],
             "to": 1,
             "reward": FRUIT_REWARD,
+            "option": True,
         },
         {
             "from": 1,
             "true": ["monkey_punched"],
             "to": 1,
             "reward": MONKEY_REWARD,
+            "option": True,
         },
 
         # =====================================================
@@ -191,6 +196,7 @@ class KangarooRm(GameRM):
             "true": ["on_floor_3"],
             "to": 3,
             "reward": PHI[3] - PHI[2],
+            "option": True,
         },
 
         {
@@ -198,12 +204,14 @@ class KangarooRm(GameRM):
             "true": ["fruit_collected"],
             "to": 2,
             "reward": FRUIT_REWARD,
+            "option": True,
         },
         {
             "from": 2,
             "true": ["monkey_punched"],
             "to": 2,
             "reward": MONKEY_REWARD,
+            "option": True,
         },
 
         # =====================================================
@@ -221,6 +229,7 @@ class KangarooRm(GameRM):
             "true": ["level_changed"],
             "to": 0,
             "reward": LEVEL_REWARD - PHI[3],
+            "option": True,
         },
 
         {
