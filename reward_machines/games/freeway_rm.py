@@ -27,7 +27,6 @@ class FreewayRm(GameRM):
     # ------------------------------------------------------------------
     # Observation layout
     # ------------------------------------------------------------------
-    # Verified on the current Jens repository:
     #
     # 4 stacked frames = 352 features
     # 1 frame          = 88 features
