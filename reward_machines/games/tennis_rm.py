@@ -48,7 +48,7 @@ class TennisRm(GameRM):
          "to": 0, "reward": -1.0},
 
         {"from": 0, "true": ["rally_active"],
-         "to": 1, "reward": 0.0},
+         "to": 1, "reward": 0.25},
 
         # ---- u1: RALLY ------------------------------------------------------
         {"from": 1, "true": ["player_game_progress"],
