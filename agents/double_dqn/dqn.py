@@ -403,10 +403,16 @@ def dqn_run(config: dict):
                 seed=config["SEED"],
                 use_rm=use_rm,
             )
-            mean_ret = float(np.mean(jax.device_get(episodic_returns)))
+            returns_np = jax.device_get(episodic_returns)
+            mean_ret = float(np.mean(returns_np))
             metrics[mod_label] = mean_ret
 
-            log = {f"eval/episodic_return_{mod_label}": mean_ret}
+            log = {
+                f"eval/episodic_return_{mod_label}": mean_ret,
+                f"eval/episodic_return_{mod_label}_std": float(np.std(returns_np)),
+                f"eval/episodic_return_{mod_label}_min": float(np.min(returns_np)),
+                f"eval/episodic_return_{mod_label}_max": float(np.max(returns_np)),
+            }
             if config.get("CAPTURE_VIDEO", False):
                 renderer = jaxatari.make(config["ENV_ID"], mods=mods_config).renderer
                 frames = jnp.transpose(jax.vmap(renderer.render)(env_states), (0, 3, 1, 2))
