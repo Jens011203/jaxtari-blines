@@ -1,5 +1,5 @@
 ALG: DOUBLE_DQN
-EXP_NAME: double_dqn_rm_crm
+EXP_NAME: double_dqn_crm_rs
 
 PIXEL_BASED: False
 NATIVE_DOWNSCALING: True
@@ -9,7 +9,7 @@ NUM_ENVS: 16
 
 LR: 1e-4
 LR_LINEAR_DECAY: False
-USE_CRM: True
+USE_CRM: False 
 USE_SHAPING: False
 GAMMA: 0.99
 

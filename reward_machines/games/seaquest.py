@@ -9,7 +9,17 @@ class SeaquestRm(GameRM):
 
     PHI_PER_DIVER = 1.0
     MAX_DIVERS = 6
-    
+
+    # Extra shaping potential for rising toward the surface once all 6 are held.
+    # Kept modest so the potential drop at the rescue step
+    # (divers reset 6->0: -6*PHI_PER_DIVER - W_ASCENT ~= -7.5) stays below the
+    # explicit +10 reward on t32.
+    W_ASCENT = 1.5
+    # Normalised player_y (obs[1]) landmarks, verified empirically:
+    #   surface ~ 46/210 = 0.2190, deepest ~ 141/210 = 0.6714
+    Y_SURFACE = 46.0 / 210.0
+    Y_DEEP = 141.0 / 210.0
+
     PROP_INDEX = {
         "lost_life": 0,
         "oxygen_low": 1,
@@ -66,9 +76,9 @@ class SeaquestRm(GameRM):
  
         # State 6: 6 divers -- goal.
         {"from": 6, "true": ["lost_life"], "to": 5, "reward": -2.0},                                # t30
-        {"from": 6, "true": ["scored"], "false": ["surfaced"], "to": 6, "reward": 0.05},            # t31
+        {"from": 6, "true": ["scored"], "false": ["surfaced"], "to": 6, "reward": 0.0},             # t31 (was +0.05: don't pay to shoot while full)
         {"from": 6, "true": ["surfaced"], "to": 0, "reward": 10.0, "option": True},                 # t32
-        {"from": 6, "true": ["at_surface_idle"], "false": ["lost_life", "scored", "surfaced"], "to": 6, "reward": -0.00},  # t33
+        {"from": 6, "true": ["at_surface_idle"], "false": ["lost_life", "scored", "surfaced"], "to": 6, "reward": -0.05},  # t33 (was -0.00: mild urgency)
     ]
 
     def __init__(self):
@@ -133,6 +143,21 @@ class SeaquestRm(GameRM):
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def potential(self, obs):
-        """Phi(s) = number of divers currently collected."""
-        divers = obs[-1] * 6.0
-        return jnp.clip(divers, 0.0, self.MAX_DIVERS) * self.PHI_PER_DIVER
+        """Phi(s) = divers held, plus an ascent bonus once all 6 are held.
+
+        The diver term densely pulls toward collecting. The gated ascent term
+        adds an upward gradient only when divers == 6 -- exactly the "surface
+        directly with a full load" behaviour -- and is zero for < 6 divers, so
+        it never perturbs the mandatory oxygen loop. Potential-based shaping
+        (gamma*Phi' - Phi) is policy-invariant, so this only speeds learning.
+        """
+        divers = jnp.clip(obs[-1] * 6.0, 0.0, self.MAX_DIVERS)
+        player_y = obs[1]
+
+        ascent = jnp.clip(
+            (self.Y_DEEP - player_y) / (self.Y_DEEP - self.Y_SURFACE), 0.0, 1.0
+        )
+        gate6 = (divers >= 5.5).astype(jnp.float32)
+
+        return self.PHI_PER_DIVER * divers + gate6 * self.W_ASCENT * ascent
+
