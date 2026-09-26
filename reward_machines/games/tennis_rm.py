@@ -1,27 +1,13 @@
 """
 Reward machine for JAXAtari Tennis.
 
-Tennis RM v3 extends the validated temporal phase machine from v2 with
-an intermediate serve-preparation subgoal.
-
-Validation motivating v3:
-- v2 correctly detected READY / RALLY / POST_POINT phases.
-- A trained DDQN+CRM policy nevertheless became stuck during player serve.
-- A causal RIGHTFIRE intervention showed that the agent first has to move
-  into hitting range before FIRE can start the rally.
-- Observation-space validation showed that player-ball serving alignment
-  can be detected reliably using both horizontal distance and the vertical
-  hit-line condition.
-- X distance alone is insufficient because it also fires during enemy serve.
-
-RM states:
+The RM tracks four phases:
 
     u0 = READY
          Waiting for the next rally.
 
     u1 = SERVE_READY
-         The player has reached the serve-ball hitting region at least once
-         during the current pre-rally phase.
+         Player-side serve geometry is in a hit-ready configuration.
 
     u2 = RALLY
          The ball is actively in play.
@@ -30,14 +16,13 @@ RM states:
          A point has just been scored. Wait until stale stacked ball motion
          has disappeared before returning to READY.
 
-The old v2 rally-start reward (+0.25) is not increased.
-For a player serve it is split into:
+For player serves, the rally-start shaping reward can be split into:
 
     READY -> SERVE_READY : +0.10
     SERVE_READY -> RALLY : +0.15
 
-For rallies that start without the player-specific serve-preparation event
-(e.g. enemy serve), READY -> RALLY still receives +0.25.
+If the intermediate serve-ready phase is not observed,
+READY -> RALLY receives +0.25 directly.
 """
 
 import functools
@@ -67,8 +52,8 @@ class TennisRm(GameRM):
     # u2 = RALLY
     # u3 = POST_POINT
     #
-    # Higher-level progress transitions come before ordinary point
-    # transitions because both may be true on a game-winning point.
+    # A higher-level score increment can coincide with a point increment,
+    # so these transitions are checked first.
     TRANSITIONS = [
         # ---- u0: READY -------------------------------------------------
         {"from": 0, "true": ["player_game_progress"],
@@ -83,12 +68,12 @@ class TennisRm(GameRM):
         {"from": 0, "true": ["enemy_point"],
          "to": 3, "reward": -1.0},
 
-        # If a rally starts without a player serve-preparation phase
-        # (for example enemy serve), preserve the original v2 reward.
+        # Direct rally start when the intermediate serve-ready phase
+        # is not observed.
         {"from": 0, "true": ["ball_in_play"],
          "to": 2, "reward": 0.25},
 
-        # Player reached a valid serve hitting region.
+        # Player-side serve geometry is in a hit-ready configuration.
         {"from": 0, "true": ["serve_ready"],
          "to": 1, "reward": 0.10},
 
@@ -105,14 +90,12 @@ class TennisRm(GameRM):
         {"from": 1, "true": ["enemy_point"],
          "to": 3, "reward": -1.0},
 
-        # Second half of the old +0.25 rally-start reward.
+        # Complete the rally-start shaping reward.
         {"from": 1, "true": ["ball_in_play"],
          "to": 2, "reward": 0.15},
 
-        # IMPORTANT:
-        # There is deliberately no SERVE_READY -> READY transition when
-        # serve_ready becomes false. Otherwise the agent could repeatedly
-        # move in/out of alignment and farm the +0.10 reward.
+        # Keep SERVE_READY sticky until the rally starts or a score event
+        # occurs; returning to READY here would allow repeated +0.10 rewards.
 
         # ---- u2: RALLY -------------------------------------------------
         {"from": 2, "true": ["player_game_progress"],
@@ -219,16 +202,8 @@ class TennisRm(GameRM):
         # Serve-preparation detector
         # --------------------------------------------------------------
         #
-        # Empirical validation against the raw Tennis hit geometry:
-        #
-        # |player_x - ball_x| <= 0.08
-        #
-        # perfectly separated player-serving hit-ready vs non-ready
-        # samples in the validation rollout.
-        #
-        # X alone is NOT sufficient because enemy serves have a similar
-        # horizontal arrangement. Therefore we additionally require the
-        # player's vertical hit line to coincide with the ball.
+        # Horizontal distance alone can also match enemy-serve layouts,
+        # so both horizontal and vertical alignment are required.
         #
         # Tennis constants:
         # FRAME_HEIGHT  = 210
