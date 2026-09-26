@@ -18,9 +18,7 @@ class BeamriderRm(GameRM):
         u1 = MOTHERSHIP_PHASE
              All White UFOs are cleared; handle the mothership phase
              before advancing to the next sector.
-
-        The design stays intentionally simple.
-        v1 additionally rewards a successful mothership hit.
+    
     """
 
     # ---------------------------------------------------------
