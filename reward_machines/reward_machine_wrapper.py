@@ -105,7 +105,7 @@ class RewardMachineWrapper(JaxatariWrapper):
             if self.use_shaping
             else jnp.zeros(())
         )
- 
+
         next_u, rm_reward, fired_idx, rm_done = self.rm.step_from_props(state.u, true_props)
  
         rm_states = self.states if self.use_crm else jnp.atleast_1d(state.u)

@@ -102,7 +102,7 @@ class SeaquestRm(GameRM):
 
         # --- field offsets (negative = from end of the whole stack = newest frame) ---
         OXY, SCORE, LIVES, DIVERS = -4, -3, -2, -1
-        PLAYER_Y = 1
+        PLAYER_Y = 1 - NUM_FEATURES
 
         # newest frame values:
         oxygen_now = obs[OXY]
