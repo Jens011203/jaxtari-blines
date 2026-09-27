@@ -5,6 +5,7 @@ from reward_machines.games.seaquest import SeaquestRm
 from reward_machines.phoenix import PhoenixRm
 from reward_machines.games.tennis_rm import TennisRm
 from reward_machines.games.kangaroo_rm import KangarooRm
+from reward_machines.games.beamrider_rm import BeamriderRm
 
 GAME_RM_REGISTRY = {
     "pong": PongRm,
@@ -14,4 +15,5 @@ GAME_RM_REGISTRY = {
     "phoenix": PhoenixRm,
     "tennis": TennisRm,
     "kangaroo": KangarooRm,
+    "beamrider": BeamriderRm,
 }
