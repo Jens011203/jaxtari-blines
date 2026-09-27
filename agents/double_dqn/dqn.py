@@ -109,12 +109,9 @@ class CustomTrainState(TrainState):
 
 def dqn_run(config: dict):
 
+    # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
     config["TARGET_UPDATE_INTERVAL"] = max(1, config["TARGET_UPDATE_TIMESTEPS"] // config["NUM_ENVS"])
-
-    print(f"[INFO] TARGET_UPDATE_INTERVAL = {config['TARGET_UPDATE_INTERVAL']} "
-          f"iterations (TARGET_UPDATE_TIMESTEPS={config['TARGET_UPDATE_TIMESTEPS']}, "
-          f"NUM_ENVS={config['NUM_ENVS']})")
 
     run_name = f'{config["ENV_ID"]}_{config["EXP_NAME"]}_{"oc" if not config["PIXEL_BASED"] else "pixel"}_{config["SEED"]}'
     wandb.init(
@@ -450,49 +447,6 @@ def dqn_run(config: dict):
     for chunk in range(1, num_chunks + 1):
         runner_state, chunk_metrics = train_chunk(runner_state)
         train_state = runner_state[0]
-        
-        # ============ TEMPORÄRER PROFILING-BLOCK — nach Gebrauch entfernen ============
-        if chunk == 1:
-            train_state_p, buffer_state_p, env_state_p, last_obs_p, rng_p = runner_state
-            rng_p, rng_a, rng_s = jax.random.split(rng_p, 3)
-
-            q_vals = network.apply(train_state_p.params, last_obs_p)
-            action = eps_greedy_exploration(rng_a, q_vals, train_state_p.timesteps)
-
-            # --- Env-Step-Zeit ---
-            for i in range(4):
-                t0 = time.time()
-                obs_p, _, reward_p, done_p, info_p = vmap_step(env_state_p, action)
-                jax.block_until_ready(obs_p)
-                if i > 0:
-                    print(f"[PROFILE] env step: {(time.time()-t0)*1000:.2f} ms")
-
-            # --- Lernphasen-Zeit (eigenständige Kopie, da _learn_phase nur in _update_step existiert) ---
-            @jax.jit
-            def _learn_phase_standalone(train_state, buffer_state, rng):
-                learn_batch = buffer.sample(buffer_state, rng).experience.first
-                q_next_online = network.apply(train_state.params, learn_batch.next_obs)
-                next_actions = jnp.argmax(q_next_online, axis=-1)
-                q_next_target = network.apply(train_state.target_network_params, learn_batch.next_obs)
-                q_next_target = jnp.take_along_axis(q_next_target, next_actions[:, None], axis=-1).squeeze(-1)
-                target = learn_batch.reward + (1 - learn_batch.done) * config["GAMMA"] * q_next_target
-
-                def _loss_fn(params):
-                    q_vals = network.apply(params, learn_batch.obs)
-                    chosen = jnp.take_along_axis(q_vals, learn_batch.action[:, None], axis=-1).squeeze(-1)
-                    return jnp.mean(optax.huber_loss(chosen, target, delta=1.0))
-
-                loss, grads = jax.value_and_grad(_loss_fn)(train_state.params)
-                train_state = train_state.apply_gradients(grads=grads)
-                return train_state, loss
-
-            for i in range(4):
-                t0 = time.time()
-                _, loss_p = _learn_phase_standalone(train_state_p, buffer_state_p, rng_s)
-                jax.block_until_ready(loss_p)
-                if i > 0:
-                    print(f"[PROFILE] learn step: {(time.time()-t0)*1000:.2f} ms")
-        # ============ ENDE PROFILING-BLOCK ============
         global_step = int(train_state.timesteps)
         elapsed = time.time() - start_time
 
