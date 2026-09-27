@@ -109,7 +109,9 @@ class CustomTrainState(TrainState):
 
 def dqn_run(config: dict):
 
+    # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
+    config["TARGET_UPDATE_INTERVAL"] = max(1, config["TARGET_UPDATE_TIMESTEPS"] // config["NUM_ENVS"])
 
     run_name = f'{config["ENV_ID"]}_{config["EXP_NAME"]}_{"oc" if not config["PIXEL_BASED"] else "pixel"}_{config["SEED"]}'
     wandb.init(
@@ -227,7 +229,7 @@ def dqn_run(config: dict):
     train_state = CustomTrainState.create(
         apply_fn=network.apply,
         params=network_params,
-        target_network_params=network_params,
+        target_network_params=jax.tree_util.tree_map(jnp.copy, network_params),
         tx=tx,
         timesteps=0,
         n_updates=0,
@@ -424,10 +426,15 @@ def dqn_run(config: dict):
         return metrics
 
     # --- CHUNKED TRAINING LOOP (replaces the single big scan) ---
-    updates_per_eval = config["EVAL_EVERY"]
+    updates_per_eval = max(1, config["EVAL_EVERY"] // config["NUM_ENVS"])
     num_chunks = config["NUM_UPDATES"] // updates_per_eval
 
-    @jax.jit
+    assert num_chunks > 0, (
+        f"num_chunks=0: EVAL_EVERY={config['EVAL_EVERY']} zu groß relativ zu "
+        f"NUM_UPDATES={config['NUM_UPDATES']} (NUM_ENVS={config['NUM_ENVS']})"
+    )
+
+    @partial(jax.jit, donate_argnums=(0,))
     def train_chunk(runner_state):
         return jax.lax.scan(_update_step, runner_state, None, updates_per_eval)
 
