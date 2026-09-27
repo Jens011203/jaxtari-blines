@@ -111,7 +111,9 @@ def dqn_run(config: dict):
 
     # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
-    config["TARGET_UPDATE_INTERVAL"] = max(1, config["TARGET_UPDATE_TIMESTEPS"] // config["NUM_ENVS"])
+    config["TARGET_UPDATE_INTERVAL"] = max(1, round(
+        config["TARGET_UPDATE_GRAD_STEPS"] * config["TRAINING_INTERVAL"] / config["GRAD_STEPS_PER_ITER"]
+    ))
 
     run_name = f'{config["ENV_ID"]}_{config["EXP_NAME"]}_{"oc" if not config["PIXEL_BASED"] else "pixel"}_{config["SEED"]}'
     wandb.init(
@@ -318,6 +320,18 @@ def dqn_run(config: dict):
             train_state = train_state.replace(n_updates=train_state.n_updates + 1)
             return train_state, loss
 
+        def _learn_k_steps(train_state, rng):
+            def _grad_step(carry, _):
+                train_state, rng = carry
+                rng, step_rng = jax.random.split(rng)
+                train_state, loss = _learn_phase(train_state, step_rng)
+                return (train_state, rng), loss
+
+            (train_state, _), losses = jax.lax.scan(
+                _grad_step, (train_state, rng), None, config["GRAD_STEPS_PER_ITER"]
+            )
+            return train_state, losses.mean()
+
         rng, _rng = jax.random.split(rng)
         env_iters = train_state.timesteps // config["NUM_ENVS"]
         is_learn_time = (
@@ -331,7 +345,7 @@ def dqn_run(config: dict):
         )
         train_state, loss = jax.lax.cond(
             is_learn_time,
-            lambda train_state, rng: _learn_phase(train_state, rng),
+            lambda train_state, rng: _learn_k_steps(train_state, rng),
             lambda train_state, rng: (train_state, jnp.array(0.0)),  # do nothing
             train_state,
             _rng,
