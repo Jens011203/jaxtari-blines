@@ -195,7 +195,10 @@ def _linear_eps(t, start, finish, anneal):
 
 
 def hrm_run(config: dict):
+    # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
+    config["TARGET_UPDATE_INTERVAL"] = max(1, config["TARGET_UPDATE_TIMESTEPS"] // config["NUM_ENVS"])
+
     gamma = config["GAMMA"]
     n_envs = config["NUM_ENVS"]
     k_max = config["OPTION_MAX_STEPS"]
@@ -262,7 +265,7 @@ def hrm_run(config: dict):
     option_ts = HRMTrainState.create(
         apply_fn=option_net.apply,
         params=(p := option_net.init(k_opt, jnp.zeros(raw_dim))),
-        target_network_params=p,
+        target_network_params=jax.tree_util.tree_map(jnp.copy, p),
         tx=optax.chain(optax.clip_by_global_norm(10.0),
                        optax.adam(option_lr)),
         timesteps=0, n_updates=0,
@@ -270,7 +273,7 @@ def hrm_run(config: dict):
     meta_ts = HRMTrainState.create(
         apply_fn=meta_net.apply,
         params=(p := meta_net.init(k_meta, jnp.zeros(aug_dim))),
-        target_network_params=p,
+        target_network_params=jax.tree_util.tree_map(jnp.copy, p),
         tx=optax.chain(optax.clip_by_global_norm(10.0),
                        optax.adam(meta_lr)),
         timesteps=0, n_updates=0,
@@ -561,7 +564,7 @@ def hrm_run(config: dict):
     updates_per_chunk = config["EVAL_EVERY"]
     num_chunks = config["NUM_UPDATES"] // updates_per_chunk
 
-    @jax.jit
+    @partial(jax.jit, donate_argnums=(0,))
     def train_chunk(rs):
         return jax.lax.scan(_update_step, rs, None, updates_per_chunk)
 

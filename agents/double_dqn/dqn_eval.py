@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable
 import flax
 import flax.linen as nn
@@ -52,7 +53,7 @@ def evaluate_dqn(
     all_first_states, all_dones, all_rewards, all_actions = [], [], [], []
     done_ever = jnp.zeros(eval_episodes, dtype=jnp.bool_)
 
-    @jax.jit
+    @partial(jax.jit, donate_argnums=(0,))
     def scanned_step(carry):
         return jax.lax.scan(step_fn, carry, None, length=1000)
 
