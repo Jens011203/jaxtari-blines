@@ -8,9 +8,9 @@ from reward_machines.games.utils import build_transitions
 class AsteroidsRm(GameRM):
 
     NUM_FEATURES = 162
-    SCORE_OFFSET, LIVES_OFFSET = -2, -1
-    WIDTH_START, WIDTH_END = -104, -87
-    MAX_MASS = 0.6
+    WIDTH_START, WIDTH_END = -104, -87  # asteroids.width of the newest frame
+    SCREEN_WIDTH = 160.0                # normalization bound of the width field
+    W_LARGE, W_MEDIUM, W_SMALL = 16.0, 8.0, 4.0
 
     PROP_INDEX = {
         "lost_life": 0,
@@ -19,10 +19,9 @@ class AsteroidsRm(GameRM):
     }
 
     TRANSITIONS = [
-        # Single state u0: everything is a self-loop. No information gained by using multiple states
-        {"from": 0, "true": ["lost_life"], "to": 0, "reward": -0.5},
-        {"from": 0, "true": ["wave_cleared"], "false": ["lost_life"], "to": 0, "reward": 1.0, "option": True},
-        {"from": 0, "true": ["scored"], "false": ["lost_life", "wave_cleared"], "to": 0, "reward": 0.02},
+        {"from": 0, "true": ["hit_small"], "to": 0, "reward": 1.0},
+        {"from": 0, "true": ["hit_medium"], "to": 0, "reward": 0.5},
+        {"from": 0, "true": ["hit_large"], "to": 0, "reward": 0.2},
     ]
 
     def __init__(self):
@@ -42,24 +41,18 @@ class AsteroidsRm(GameRM):
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def get_events(self, obs):
-        score_now = obs[self.SCORE_OFFSET]
-        lives_now = obs[self.LIVES_OFFSET]
-        score_prev = obs[self.SCORE_OFFSET - self.NUM_FEATURES]
-        lives_prev = obs[self.LIVES_OFFSET - self.NUM_FEATURES]
-
-        # Field "mass" = sum of normalized asteroid widths
-        mass_now = jnp.sum(obs[self.WIDTH_START:self.WIDTH_END])
-        mass_prev = jnp.sum(
-            obs[self.WIDTH_START - self.NUM_FEATURES:self.WIDTH_END - self.NUM_FEATURES]
+        F = self.NUM_FEATURES
+        w_now = jnp.round(obs[self.WIDTH_START:self.WIDTH_END] * self.SCREEN_WIDTH)
+        w_prev = jnp.round(
+            obs[self.WIDTH_START - F:self.WIDTH_END - F] * self.SCREEN_WIDTH
         )
-
-        lost_life = lives_now < lives_prev
-        scored = score_now > score_prev
-        wave_cleared = mass_now > mass_prev + 1e-4
-
-        return jnp.array([lost_life, wave_cleared, scored]).astype(jnp.int32)
+        # A hit downgrades the asteroid in its own slot: L -> M, M -> S, S -> gone.
+        # Split-off mediums spawn into empty slots (0 -> 8) and are not counted.
+        hit_large = jnp.any((w_prev == self.W_LARGE) & (w_now == self.W_MEDIUM))
+        hit_medium = jnp.any((w_prev == self.W_MEDIUM) & (w_now == self.W_SMALL))
+        hit_small = jnp.any((w_prev == self.W_SMALL) & (w_now == 0.0))
+        return jnp.array([hit_small, hit_medium, hit_large]).astype(jnp.int32)
 
     @functools.partial(jax.jit, static_argnums=(0,))
     def potential(self, obs):
-        mass = jnp.sum(obs[self.WIDTH_START:self.WIDTH_END])
-        return jnp.clip(1.0 - mass / self.MAX_MASS, 0.0, 1.0)
+        return jnp.zeros(())
