@@ -1,3 +1,4 @@
+from reward_machines.games.asteroids import AsteroidsRm
 from reward_machines.games.enduro_rm import EnduroRm
 from reward_machines.games.pong_rm import PongRm
 from reward_machines.games.frostbite_rm import FrostbiteRm
@@ -18,5 +19,6 @@ GAME_RM_REGISTRY = {
     "kangaroo": KangarooRm,
     "beamrider": BeamriderRm,
     "phoenix": PhoenixRm,
-    "enduro": EnduroRm
+    "enduro": EnduroRm,
+    "asteroids": AsteroidsRm
 }
