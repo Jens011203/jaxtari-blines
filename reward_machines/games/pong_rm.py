@@ -42,3 +42,8 @@ class PongRm(GameRM):
 
         # boolean proposition vector [scored, conceded] -> bit-encoded by get_prop_index
         return jnp.array([scored, conceded]).astype(jnp.int32)
+
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def potential(self, obs):
+        return jnp.zeros(())
