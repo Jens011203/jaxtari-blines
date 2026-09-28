@@ -98,13 +98,16 @@ class RewardMachineWrapper(JaxatariWrapper):
             state.env_state, action
         )
         done = terminated | truncated
+        episode_over = jnp.logical_or(info["env_done"], truncated)
         true_props = self.rm.get_events(obs)
+        true_props = jnp.where(episode_over, jnp.zeros_like(true_props), true_props)
  
-        shaping = (
-            self.gamma * self.rm.potential(obs) - self.rm.potential(state.prev_obs)
-            if self.use_shaping
-            else jnp.zeros(())
-        )
+        # Potential-based shaping with Phi(terminal) = 0
+        if self.use_shaping:
+            next_phi = jnp.where(done, 0.0, self.rm.potential(obs))
+            shaping = self.gamma * next_phi - self.rm.potential(state.prev_obs)
+        else:
+            shaping = jnp.zeros(())
 
         next_u, rm_reward, fired_idx, rm_done = self.rm.step_from_props(state.u, true_props)
  
@@ -113,7 +116,6 @@ class RewardMachineWrapper(JaxatariWrapper):
             self._get_crm_experience, in_axes=(0, None, None, None, None, None, None)
         )(rm_states, action, state.prev_obs, obs, true_props, shaping, done)
  
-        episode_over = jnp.logical_or(info["env_done"], truncated)
         next_u = jnp.where(episode_over, self.rm.init_state, next_u)
         aug_obs = self._augment_obs(obs, next_u)
         done = jnp.logical_or(terminated, rm_done)
@@ -128,5 +130,5 @@ class RewardMachineWrapper(JaxatariWrapper):
             option_rewards, option_terminate = self._option_signals(state.u, true_props)
             info["option_rewards"] = option_rewards
             info["option_terminate"] = option_terminate
- 
+
         return aug_obs, new_state, rm_reward, done, truncated, info
