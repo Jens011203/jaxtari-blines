@@ -130,5 +130,4 @@ class RewardMachineWrapper(JaxatariWrapper):
             option_rewards, option_terminate = self._option_signals(state.u, true_props)
             info["option_rewards"] = option_rewards
             info["option_terminate"] = option_terminate
-
         return aug_obs, new_state, rm_reward, done, truncated, info
