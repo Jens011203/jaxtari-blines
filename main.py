@@ -19,9 +19,6 @@ def main(config):
         if merged_config["ALG"] == "PPO":
             from agents.ppo.ppo import single_run
             run_fn = single_run
-        elif merged_config["ALG"] == "DQN":  
-            from agents.dqn.dqn import single_run  
-            run_fn = single_run
         elif merged_config["ALG"] == "RAINBOW":  
             from agents.rainbow.rainbow import single_run  
             run_fn = single_run

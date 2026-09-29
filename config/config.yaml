@@ -25,6 +25,6 @@ EVAL_MODS: []
 
 # eval every N steps during training
 EVAL_DURING_TRAIN: True
-EVAL_EVERY: 500_000 # measured in alg iterations, not env steps
+EVAL_EVERY: 397_312 # measured in alg iterations, not env steps
 # whether to capture a video during eval
 CAPTURE_VIDEO: false
