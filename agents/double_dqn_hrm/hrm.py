@@ -197,7 +197,12 @@ def _linear_eps(t, start, finish, anneal):
 def hrm_run(config: dict):
     # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
-    config["TARGET_UPDATE_INTERVAL"] = max(1, config["TARGET_UPDATE_TIMESTEPS"] // config["NUM_ENVS"])
+    config["TARGET_UPDATE_INTERVAL"] = max(1, round(
+        config["TARGET_UPDATE_GRAD_STEPS"] * config["TRAINING_INTERVAL"] / config["GRAD_STEPS_PER_ITER"]
+    ))
+    config["META_TARGET_UPDATE_INTERVAL"] = max(1, round(
+        config["TARGET_UPDATE_GRAD_STEPS"] * config["TRAINING_INTERVAL"]
+    ))
 
     gamma = config["GAMMA"]
     n_envs = config["NUM_ENVS"]
@@ -370,6 +375,18 @@ def hrm_run(config: dict):
         ts = ts.apply_gradients(grads=grads).replace(n_updates=ts.n_updates + 1)
         return ts, loss
 
+    def _option_learn_k(ts, buf_state, rng):
+        def _grad_step(carry, _):
+            ts, rng = carry
+            rng, step_rng = jax.random.split(rng)
+            ts, loss = _option_learn(ts, buf_state, step_rng)
+            return (ts, rng), loss
+
+        (ts, _), losses = jax.lax.scan(
+            _grad_step, (ts, rng), None, config["GRAD_STEPS_PER_ITER"]
+        )
+        return ts, losses.mean()
+
     def _meta_learn(ts, buf_state, rng):
         """SMDP Q-learning:
         y = sum_k gamma^k r_{t+k} + gamma^K max_{o' in avail(u')} Q^-(s', u', o')
@@ -442,7 +459,8 @@ def hrm_run(config: dict):
         # 5. terminate on subgoal, episode end, or timeout. The timeout is not
         #    in the paper but is required in practice: without it a stuck
         #    option never releases control and never produces a meta sample.
-        terminate = info["option_terminate"] | done | (length >= k_max)
+        u_changed = u_of(obs) != u_of(last_obs)
+        terminate = info["option_terminate"] | done | (length >= k_max) | u_changed
         meta_bs = meta_buffer.add(
             meta_bs,
             MetaTimeStep(obs=start_obs, option=option, ret=ret, next_obs=obs,
@@ -466,7 +484,7 @@ def hrm_run(config: dict):
             & (env_iters % config["TRAINING_INTERVAL"] == 0)
         )
         option_ts, option_loss = jax.lax.cond(
-            can_learn, lambda ts, r: _option_learn(ts, option_bs, r),
+            can_learn, lambda ts, r: _option_learn_k(ts, option_bs, r),
             lambda ts, r: (ts, jnp.float32(0)), option_ts, rng_lo,
         )
         meta_ts, meta_loss = jax.lax.cond(
@@ -475,17 +493,16 @@ def hrm_run(config: dict):
             lambda ts, r: (ts, jnp.float32(0)), meta_ts, rng_lm,
         )
 
-        def _sync(ts, tau):
+        def _sync(ts, interval):
             return jax.lax.cond(
-                env_iters % config["TARGET_UPDATE_INTERVAL"] == 0,
-                lambda s: s.replace(
-                    target_network_params=optax.incremental_update(
-                        s.params, s.target_network_params, tau)),
+                env_iters % interval == 0,
+                lambda s: s.replace(target_network_params=optax.incremental_update(
+                    s.params, s.target_network_params, config["TAU"])),
                 lambda s: s, ts,
             )
 
-        option_ts = _sync(option_ts, config["TAU"])
-        meta_ts = _sync(meta_ts, config["TAU"])
+        option_ts = _sync(option_ts, config["TARGET_UPDATE_INTERVAL"])
+        meta_ts = _sync(meta_ts, config["META_TARGET_UPDATE_INTERVAL"])
 
         metrics = {
             "timesteps": option_ts.timesteps,
@@ -561,8 +578,12 @@ def hrm_run(config: dict):
             wandb.log(log, step=step)
         return metrics
 
-    updates_per_chunk = config["EVAL_EVERY"]
+    updates_per_chunk = max(1, config["EVAL_EVERY"] // n_envs)
     num_chunks = config["NUM_UPDATES"] // updates_per_chunk
+    assert num_chunks > 0, (
+        f"num_chunks=0: EVAL_EVERY={config['EVAL_EVERY']} too large for "
+        f"NUM_UPDATES={config['NUM_UPDATES']} (NUM_ENVS={n_envs})"
+    )
 
     @partial(jax.jit, donate_argnums=(0,))
     def train_chunk(rs):
@@ -571,6 +592,7 @@ def hrm_run(config: dict):
     key, _rng = jax.random.split(key)
     runner_state = (option_ts, meta_ts, option_bs, meta_bs,
                     env_state, init_obs, exec_state, _rng)
+    
 
     start_time = time.time()
     for _ in range(1, num_chunks + 1):

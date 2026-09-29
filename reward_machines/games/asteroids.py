@@ -13,15 +13,15 @@ class AsteroidsRm(GameRM):
     W_LARGE, W_MEDIUM, W_SMALL = 16.0, 8.0, 4.0
 
     PROP_INDEX = {
-        "lost_life": 0,
-        "wave_cleared": 1,
-        "scored": 2,
+        "hit_small": 0,
+        "hit_medium": 1,
+        "hit_large": 2,
     }
 
     TRANSITIONS = [
-        {"from": 0, "true": ["hit_small"], "to": 0, "reward": 1.0},
-        {"from": 0, "true": ["hit_medium"], "to": 0, "reward": 0.5},
-        {"from": 0, "true": ["hit_large"], "to": 0, "reward": 0.2},
+        {"from": 0, "true": ["hit_small"],  "to": 0, "reward": 1.0, "option": True},
+        {"from": 0, "true": ["hit_medium"], "to": 0, "reward": 0.5, "option": True},
+        {"from": 0, "true": ["hit_large"],  "to": 0, "reward": 0.2, "option": True},
     ]
 
     def __init__(self):
