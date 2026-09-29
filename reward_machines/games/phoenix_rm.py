@@ -16,8 +16,8 @@ class PhoenixRm(GameRM):
 
     PROP_INDEX = {
         "lost_life": 0,
-        "entered_boss": 1,
-        "boss_defeated": 2,
+        "in_boss": 1,
+        "out_of_boss": 2,
         "shield_hit": 3,
         "scored": 4,
     }

@@ -21,6 +21,22 @@ class EnduroRm(GameRM):
         {"from": 0, "true": ["got_overtaken"], "to": 0, "reward": -1.0},
     ]
 
+    def __init__(self):
+        (self._from, self._rt, self._rf, self._to, self._rew) = build_transitions(
+            len(self.PROP_INDEX), self.PROP_INDEX, self.TRANSITIONS
+        )
+ 
+    def num_states(self):     return 1
+    def init_state(self):     return 0
+    def terminal_state(self): return -99
+ 
+    def from_states(self):    return self._from
+    def require_true(self):   return self._rt
+    def require_false(self):  return self._rf
+    def to_states(self):      return self._to
+    def rewards(self):        return self._rew
+
+
     # ... __init__ and accessors unchanged ...
 
     def _window_phase(self, frame):

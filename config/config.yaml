@@ -14,9 +14,9 @@ SAVE_PATH: "./models"
 UPLOAD_MODEL: False
 
 # default env
-ENV_ID: seaquest
+ENV_ID: phoenix 
 # pick reward machine. Must fit to selected env
-# GAME_RM: seaquest 
+GAME_RM: phoenix 
 
 # choose mods to be active during training, default: None
 TRAIN_MODS: []
@@ -25,6 +25,6 @@ EVAL_MODS: []
 
 # eval every N steps during training
 EVAL_DURING_TRAIN: True
-EVAL_EVERY: 200000 # measured in alg iterations, not env steps
+EVAL_EVERY: 500_000 # measured in alg iterations, not env steps
 # whether to capture a video during eval
-CAPTURE_VIDEO: true 
+CAPTURE_VIDEO: false

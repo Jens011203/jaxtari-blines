@@ -14,3 +14,5 @@ models/
 outputs/
 wandb/
 .DS_Store
+
+ablation_logs/
