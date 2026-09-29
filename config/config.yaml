@@ -14,9 +14,9 @@ SAVE_PATH: "./models"
 UPLOAD_MODEL: False
 
 # default env
-ENV_ID: phoenix 
+ENV_ID: kangaroo 
 # pick reward machine. Must fit to selected env
-GAME_RM: phoenix 
+GAME_RM: kangaroo 
 
 # choose mods to be active during training, default: None
 TRAIN_MODS: []
@@ -27,4 +27,4 @@ EVAL_MODS: []
 EVAL_DURING_TRAIN: True
 EVAL_EVERY: 397_312 # measured in alg iterations, not env steps
 # whether to capture a video during eval
-CAPTURE_VIDEO: false
+CAPTURE_VIDEO: true
