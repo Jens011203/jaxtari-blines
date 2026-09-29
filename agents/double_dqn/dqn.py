@@ -371,7 +371,8 @@ def dqn_run(config: dict):
             "timesteps": train_state.timesteps,
             "updates": train_state.n_updates,
             "loss": loss.mean(),
-            "returns": info["returned_episode_returns"].mean(),
+            "returns_sum": jnp.sum(info["returned_episode_returns"] * info["returned_episode"]),
+            "returns_count": jnp.sum(info["returned_episode"]),
             "env_reward": info["env_reward"].mean(),
         }
         if use_rm:
@@ -457,6 +458,7 @@ def dqn_run(config: dict):
 
     start_time = time.time()
     eval_metrics = {}
+    episode_returns = []
 
     for chunk in range(1, num_chunks + 1):
         runner_state, chunk_metrics = train_chunk(runner_state)
@@ -465,12 +467,17 @@ def dqn_run(config: dict):
         elapsed = time.time() - start_time
 
         log = {
-            "charts/avg_episodic_return": float(chunk_metrics["returns"].mean()),
             "charts/env_reward_per_step": float(chunk_metrics["env_reward"].mean()),
             "losses/td_loss": float(chunk_metrics["loss"].mean()),
             "charts/SPS": int(global_step / elapsed),
             "charts/time": elapsed,
         }
+        count = float(chunk_metrics["returns_count"].sum())
+        if count > 0:
+            avg_return = float(chunk_metrics["returns_sum"].sum()) / count
+            log["charts/avg_episodic_return"] = avg_return
+            episode_returns.append(avg_return)
+
         if use_rm:
             log["charts/rm_reward_per_step"] = float(chunk_metrics["rm_reward"].mean())
             hist = np.asarray(chunk_metrics["fired_hist"].sum(axis=0))
@@ -484,6 +491,10 @@ def dqn_run(config: dict):
     final_step = int(train_state.timesteps)
     save_model(train_state.params, final_step)
     eval_metrics = eval_model(train_state.params, final_step)
+    if episode_returns:
+        n_last = max(1, len(episode_returns) // 5)  # last ~20% of training
+        wandb.run.summary["final/return_last_20pct"] = float(np.mean(episode_returns[-n_last:]))
+        wandb.run.summary["final/return_mean_all"] = float(np.mean(episode_returns))
     wandb.finish()
 
     return eval_metrics

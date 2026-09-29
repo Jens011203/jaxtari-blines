@@ -508,7 +508,8 @@ def hrm_run(config: dict):
             "timesteps": option_ts.timesteps,
             "option_loss": option_loss,
             "meta_loss": meta_loss,
-            "returns": info["returned_episode_returns"].mean(),
+            "returns_sum": jnp.sum(info["returned_episode_returns"] * info["returned_episode"]),
+            "returns_count": jnp.sum(info["returned_episode"]),
             "env_reward": info["env_reward"].mean(),
             "rm_reward": info["rm_reward"].mean(),
             "option_len": jnp.mean(jnp.where(terminate, length, 0).sum()
@@ -593,7 +594,7 @@ def hrm_run(config: dict):
     runner_state = (option_ts, meta_ts, option_bs, meta_bs,
                     env_state, init_obs, exec_state, _rng)
     
-
+    episode_returns = []
     start_time = time.time()
     for _ in range(1, num_chunks + 1):
         runner_state, m = train_chunk(runner_state)
@@ -602,7 +603,6 @@ def hrm_run(config: dict):
         elapsed = time.time() - start_time
 
         log = {
-            "charts/avg_episodic_return": float(m["returns"].mean()),
             "charts/env_reward_per_step": float(m["env_reward"].mean()),
             "charts/rm_reward_per_step": float(m["rm_reward"].mean()),
             "charts/mean_option_length": float(m["option_len"].mean()),
@@ -610,6 +610,12 @@ def hrm_run(config: dict):
             "losses/meta_loss": float(m["meta_loss"].mean()),
             "charts/SPS": int(global_step / elapsed),
         }
+        count = float(m["returns_count"].sum())
+        if count > 0:
+            avg_return = float(m["returns_sum"].sum()) / count
+            log["charts/avg_episodic_return"] = avg_return
+            episode_returns.append(avg_return)
+
         hist = np.asarray(m["option_hist"].sum(axis=0))
         hits = np.asarray(m["subgoal_hits"].sum(axis=0))
         for i, name in enumerate(options.names):
@@ -624,5 +630,9 @@ def hrm_run(config: dict):
     final_step = int(option_ts.timesteps)
     save_model(option_ts.params, meta_ts.params, final_step)
     eval_metrics = eval_model(option_ts.params, meta_ts.params, final_step)
+    if episode_returns:
+        n_last = max(1, len(episode_returns) // 5)  # last ~20% of training
+        wandb.run.summary["final/return_last_20pct"] = float(np.mean(episode_returns[-n_last:]))
+        wandb.run.summary["final/return_mean_all"] = float(np.mean(episode_returns))
     wandb.finish()
     return eval_metrics

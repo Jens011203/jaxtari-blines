@@ -175,7 +175,7 @@ def build_command(args, rm_name: str, variant: Variant, seed: int,
     if args.eval_every is not None:
         cmd.append(f"++EVAL_EVERY={args.eval_every}")
     if not args.video:
-        cmd.append("++CAPTURE_VIDEO=false")
+        cmd.append("++CAPTURE_VIDEO=False")
     cmd.extend(args.extra)
     return cmd
 
