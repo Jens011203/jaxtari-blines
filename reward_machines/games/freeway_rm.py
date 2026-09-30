@@ -52,6 +52,12 @@ class FreewayRm(GameRM):
     # After reaching the top, Freeway immediately respawns the chicken at
     # the bottom. Detect the characteristic top -> bottom jump.
     CROSS_TOP_MAX = 25.0
+
+    # Shaping potential: normalized vertical progress of the chicken.
+    # Observed y range in JAXAtari: start ~188, top ~17.
+    Y_START = 188.0
+    Y_TOP = 17.0
+    PHI_SCALE = 0.2
     CROSS_BOTTOM_MIN = 180.0
 
     PROP_INDEX = {
@@ -176,3 +182,11 @@ class FreewayRm(GameRM):
                 crossed,
             ]
         ).astype(jnp.int32)
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def potential(self, obs):
+        """Phi(s) = PHI_SCALE * progress of the chicken towards the top, in [0, PHI_SCALE]."""
+        now = obs.reshape(-1, self.NUM_FEATURES)[-1]
+        y = now[self.CHICKEN_Y] * self.Y_SCALE
+        progress = (self.Y_START - y) / (self.Y_START - self.Y_TOP)
+        return self.PHI_SCALE * jnp.clip(progress, 0.0, 1.0)
