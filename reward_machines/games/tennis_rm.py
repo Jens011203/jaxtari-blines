@@ -45,6 +45,18 @@ class TennisRm(GameRM):
         "enemy_game_progress": 5,
     }
 
+    # HRM options (edges marked "option": True). Options are keyed by guard
+    # formula, so edges with the same guard share one option policy:
+    #   serve_ready   (u0)         -> get into serve position
+    #   ball_in_play  (u0, u1)     -> start the rally
+    #   player_point  (u0, u1, u2) -> win the point (also covers game progress,
+    #                                 since player_point is set then too)
+    #   !ball_in_play (u3)         -> wait for the next rally
+    # Penalty edges (enemy_point / enemy_game_progress) are deliberately not
+    # options, see RewardMachineWrapper._option_signals.
+    PHI_SCALE = 0.1
+    PHI_MAX_DIST = 0.8  # ~max normalized player-ball distance observed
+
     # RM states:
     #
     # u0 = READY
@@ -63,7 +75,7 @@ class TennisRm(GameRM):
          "to": 3, "reward": -3.0},
 
         {"from": 0, "true": ["player_point"],
-         "to": 3, "reward": 1.0},
+         "to": 3, "reward": 1.0, "option": True},
 
         {"from": 0, "true": ["enemy_point"],
          "to": 3, "reward": -1.0},
@@ -71,11 +83,11 @@ class TennisRm(GameRM):
         # Direct rally start when the intermediate serve-ready phase
         # is not observed.
         {"from": 0, "true": ["ball_in_play"],
-         "to": 2, "reward": 0.25},
+         "to": 2, "reward": 0.25, "option": True},
 
         # Player-side serve geometry is in a hit-ready configuration.
         {"from": 0, "true": ["serve_ready"],
-         "to": 1, "reward": 0.10},
+         "to": 1, "reward": 0.10, "option": True},
 
         # ---- u1: SERVE_READY -------------------------------------------
         {"from": 1, "true": ["player_game_progress"],
@@ -85,14 +97,14 @@ class TennisRm(GameRM):
          "to": 3, "reward": -3.0},
 
         {"from": 1, "true": ["player_point"],
-         "to": 3, "reward": 1.0},
+         "to": 3, "reward": 1.0, "option": True},
 
         {"from": 1, "true": ["enemy_point"],
          "to": 3, "reward": -1.0},
 
         # Complete the rally-start shaping reward.
         {"from": 1, "true": ["ball_in_play"],
-         "to": 2, "reward": 0.15},
+         "to": 2, "reward": 0.15, "option": True},
 
         # Keep SERVE_READY sticky until the rally starts or a score event
         # occurs; returning to READY here would allow repeated +0.10 rewards.
@@ -105,7 +117,7 @@ class TennisRm(GameRM):
          "to": 3, "reward": -3.0},
 
         {"from": 2, "true": ["player_point"],
-         "to": 3, "reward": 1.0},
+         "to": 3, "reward": 1.0, "option": True},
 
         {"from": 2, "true": ["enemy_point"],
          "to": 3, "reward": -1.0},
@@ -113,7 +125,7 @@ class TennisRm(GameRM):
         # ---- u3: POST_POINT --------------------------------------------
         # Wait until stale movement from the previous rally disappears.
         {"from": 3, "false": ["ball_in_play"],
-         "to": 0, "reward": 0.0},
+         "to": 0, "reward": 0.0, "option": True},
     ]
 
     def __init__(self):
@@ -301,3 +313,14 @@ class TennisRm(GameRM):
             player_game_progress,
             enemy_game_progress,
         ]).astype(jnp.int32)
+
+    @functools.partial(jax.jit, static_argnums=(0,))
+    def potential(self, obs):
+        """Shaping potential: closeness of the player to the ball (last frame).
+
+        Phi in [0, PHI_SCALE]; kept small relative to the +-1 / +-3 RM rewards.
+        """
+        NUM_FEATURES = 29
+        now = obs[-NUM_FEATURES:]
+        dist = jnp.hypot(now[0] - now[16], now[1] - now[17])
+        return self.PHI_SCALE * (1.0 - jnp.clip(dist / self.PHI_MAX_DIST, 0.0, 1.0))
