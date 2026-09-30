@@ -1,11 +1,11 @@
 # experiment params
-NAME_INITIALS: "JF"
-NUM_SEEDS: 1
+NAME_INITIALS: "RE"
+NUM_SEEDS: 3
 SEED: 1
 
 # wandb params
 WANDB_MODE: "online"  # set to online to activate wandb
-ENTITY: "jaxtari-blines"
+ENTITY: "jaxatari"
 PROJECT: "jaxtari-blines"
 
 # where to save the params (if None, will not save)
@@ -14,9 +14,9 @@ SAVE_PATH: "./models"
 UPLOAD_MODEL: False
 
 # default env
-ENV_ID: kangaroo 
-# pick reward machine. Must fit to selected env
-GAME_RM: kangaroo 
+ENV_ID: pong
+# reward machine. Must fit to selected env
+# GAME_RM: pong
 
 # choose mods to be active during training, default: None
 TRAIN_MODS: []
@@ -24,7 +24,7 @@ TRAIN_MODS: []
 EVAL_MODS: []
 
 # eval every N steps during training
-EVAL_DURING_TRAIN: True
-EVAL_EVERY: 397_312 # measured in alg iterations, not env steps
+EVAL_DURING_TRAIN: False
+EVAL_EVERY: 100 # measured in alg iterations, not env steps
 # whether to capture a video during eval
-CAPTURE_VIDEO: true
+CAPTURE_VIDEO: True

@@ -107,7 +107,7 @@ class CustomTrainState(TrainState):
     n_updates: int
 
 
-def dqn_run(config: dict):
+def single_run(config: dict):
 
     # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])

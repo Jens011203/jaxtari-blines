@@ -194,7 +194,7 @@ def _linear_eps(t, start, finish, anneal):
     return jnp.clip((finish - start) / anneal * t + start, finish)
 
 
-def hrm_run(config: dict):
+def single_run(config: dict):
     # Keep TARGET_UPDATE_INTERVAL propotional to NUM_ENVS
     config["NUM_UPDATES"] = int(config["TOTAL_TIMESTEPS"] // config["NUM_ENVS"])
     config["TARGET_UPDATE_INTERVAL"] = max(1, round(
